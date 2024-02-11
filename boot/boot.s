@@ -40,6 +40,17 @@ _start:
 	machine.
 	*/
 
+	lgdt early_gdt_desc
+
+	ljmp $0x08, $.dummy_target
+.dummy_target:
+	mov $0x10,%cx
+	mov %cx,%ds
+	mov %cx,%es
+	mov %cx,%fs
+	mov %cx,%gs
+	mov %cx,%ss
+
 	/*
 	To set up a stack, we set the esp register to point to the top of the
 	stack (as it grows downwards on x86 systems). This is necessarily done
@@ -71,6 +82,39 @@ _start:
 	*/
 	call bootstrap
 
+	pushl $0x00000000
+	pushl %eax
+
+	mov %cr4, %eax
+	or  $0x20, %eax
+	mov %eax, %cr4
+	
+	mov $level4_page_table, %eax
+	mov %eax, %cr3
+
+	mov $0, %edx
+	mov $0x100, %eax
+	mov $0xC0000080, %ecx
+	wrmsr # Enable long mode !
+
+	mov %cr0, %ebx
+	or $0x80000001, %ebx
+	mov %ebx, %cr0
+
+	lgdt early_gdt_desc # Reload GDT
+
+	mov $0x10,%cx
+	mov %cx,%ds
+	mov %cx,%es
+	mov %cx,%fs
+	mov %cx,%gs
+	mov %cx,%ss
+
+	# We are in compatibility mode. We now jump to long mode
+
+	ljmp $0x08, $.longmode_gate
+.longmode_gate:
+	ret
 	/*
 	If the system has nothing more to do, put the computer into an
 	infinite loop. To do that:
@@ -83,7 +127,9 @@ _start:
 	3) Jump to the hlt instruction if it ever wakes up due to a
 	   non-maskable interrupt occurring or due to system management mode.
 	*/
-	cli
+.global halt
+.type halt,@function
+halt:	cli
 1:	hlt
 	jmp 1b
 
