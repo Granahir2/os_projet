@@ -14,6 +14,7 @@ kernel:
 test: os.iso
 	qemu-system-x86_64 -cdrom os.iso
 clean:
-	rm *.o *.bin *.iso
-	rm -rf isodir
-	cd kernel && $(MAKE) clean
+	-rm *.o *.bin *.iso
+	-rm -rf isodir
+	-cd kernel && $(MAKE) clean
+	-cd boot && $(MAKE) clean
