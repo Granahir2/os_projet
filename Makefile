@@ -5,12 +5,15 @@ os.iso: bootstrap kernel grub.cfg
 	cp kernel/kernel.bin isodir/boot
 	grub-mkrescue -o os.iso isodir
 
+misc:
+	cd misc && $(MAKE)
+
 bootstrap:
 	cd boot && $(MAKE)
 kernel:
 	cd kernel && $(MAKE)
 
-.PHONY: clean test kernel bootstrap
+.PHONY: clean test kernel bootstrap misc
 test: os.iso
 	qemu-system-x86_64 -cdrom os.iso
 clean:

@@ -1,5 +1,5 @@
 CXX_FLAGS=-O0 -ggdb -ffreestanding -nostdlib -fno-exceptions -fno-rtti -fno-pie -fno-pic\
--std=c++20 -mno-mmx -mno-sse -fno-stack-protector -m32 -I.. -Wall -Wextra
+-std=c++2a -mno-mmx -mno-sse -fno-stack-protector -m32 -I.. -Wall -Wextra
 
 bootstrap.bin: x64bootstrap.o load_kernel.o boot.o linker.ld
 	ld -g -T linker.ld -melf_i386 -o bootstrap.bin x64bootstrap.o load_kernel.o boot.o 
