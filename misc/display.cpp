@@ -25,7 +25,7 @@ size_t Display::strlen(const char* str)
 	return len;
 }
  
-void Display::init(void) 
+Display::Display(void) 
 {
 	terminal_row = 0;
 	terminal_column = 0;

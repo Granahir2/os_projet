@@ -1,5 +1,5 @@
-#ifndef DISPLAY_H
-#define DISPLAY_H
+#pragma once
+
 #include <stdint.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -25,7 +25,7 @@ enum vga_color {
 
 class Display {
 public:
-    void init();
+	Display();
     void print(const char* str, ...);
 private:
     inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg);
@@ -43,5 +43,4 @@ private:
     void terminal_write(const char* data, size_t size);
     void print_number(unsigned int i, int base);
 };
-    
-#endif
+

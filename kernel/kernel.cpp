@@ -6,10 +6,7 @@
 #include <stdint.h>
 #include "./misc/display.h"
 
-extern "C"
-void kernel_main(void)  {
-    Display terminal;
-    terminal.init();
-
+extern "C" void kernel_main(void)  {
+    	Display terminal = Display();
 	terminal.print("Hello, %d bit kernel World!", 64);
 }

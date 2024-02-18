@@ -1,9 +1,5 @@
 #include "load_kernel.hh"
 
-
-extern "C" void terminal_printhex(uint32_t d);
-void terminal_writestring(const char* data);
-
 namespace elf64 { // Move to a specific file ? We're going to need this someday elsewhere.
 	struct file_header {
 		unsigned char ident[16]; // Magic numbers
@@ -64,15 +60,7 @@ lk_result load_kernel(uint32_t safezone_start, void* elf_start) {
 				return {lk_result::CANNOT_RELOC, nullptr, 0};
 			} continue;
 		}
-
-		terminal_writestring("Found loadable section ");
-		terminal_printhex(toparse->file_off);
-		terminal_writestring(" ");
-		terminal_printhex(toparse->vaddr);
-		terminal_writestring(" ");
-		terminal_printhex(toparse->memsz);
-		terminal_writestring("\n");
-
+		
 		if(toparse->vaddr < (uint64_t)safezone_start ||
 		   toparse->vaddr + toparse->memsz >= (uint64_t)(0x100000000ull)) {
 			return {lk_result::SAFEZONE_VIOLATION, nullptr, i};
