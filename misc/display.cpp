@@ -5,6 +5,11 @@
 
 #include "display.h"
 
+
+size_t Display::terminal_row;
+size_t Display::terminal_column;
+uint8_t Display::terminal_color;
+
 /* Hardware text mode color constants. */
  
 inline uint8_t Display::vga_entry_color(enum vga_color fg, enum vga_color bg) 
@@ -25,12 +30,14 @@ size_t Display::strlen(const char* str)
 	return len;
 }
  
-Display::Display(void) 
+Display::Display() : terminal_buffer((uint16_t*)(terminal_buffer_addr)) 
 {
+}
+
+void Display::clear() {
 	terminal_row = 0;
 	terminal_column = 0;
 	terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-	terminal_buffer = (uint16_t*) 0xb8000;
 	for (size_t y = 0; y < VGA_HEIGHT; y++) {
 		for (size_t x = 0; x < VGA_WIDTH; x++) {
 			const size_t index = y * VGA_WIDTH + x;
@@ -52,6 +59,12 @@ void Display::terminal_putentryat(char c, uint8_t color, size_t x, size_t y)
  
 void Display::terminal_putchar(char c) 
 {
+	if(c == '\n') {
+		terminal_column = 0;
+		if(++terminal_row == VGA_HEIGHT) terminal_row = 0;
+		return;
+	}
+
 	terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
 	if (++terminal_column == VGA_WIDTH) {
 		terminal_column = 0;
@@ -114,7 +127,11 @@ void Display::print(const char* str, ...)
 {
     va_list args;
     va_start(args, str);
+    vprint(str, args);
+    va_end(args);
+}
 
+void Display::vprint(const char* str, va_list args) {
     const char* p = str;
     int i;
     unsigned int u;
@@ -151,6 +168,13 @@ void Display::print(const char* str, ...)
                 u = va_arg(args, unsigned int);
                 print_number(u, 10);
                 break;
+	    case 'p':{
+		uint64_t x = va_arg(args, uint64_t);
+		if(x>>32 != 0) {
+			print_number((unsigned int)(x>>32), 16);
+		}
+		print_number((unsigned int)(x&0xffffffff), 16);
+		} break;
             case 'x':
                 u = va_arg(args, unsigned int);
                 print_number(u, 16);

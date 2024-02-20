@@ -1,3 +1,6 @@
+export CXXFLAGS=-O3 -ggdb -ffreestanding -nostdlib -fno-exceptions -fno-rtti -fno-pie -fno-pic\
+-std=c++2a -mno-mmx -mno-sse -mgeneral-regs-only -fno-stack-protector -I$(CURDIR) -Wall -Wextra
+export ASFLAGS=-g
 os.iso: bootstrap kernel grub.cfg
 	mkdir -p isodir/boot/grub
 	cp grub.cfg isodir/boot/grub
@@ -17,7 +20,7 @@ kernel:
 test: os.iso
 	qemu-system-x86_64 -cdrom os.iso
 clean:
-	-rm *.o *.bin *.iso
-	-rm -rf isodir
-	-cd kernel && $(MAKE) clean
-	-cd boot && $(MAKE) clean
+	$(RM) *.o *.bin *.iso
+	$(RM) -r isodir
+	cd kernel && $(MAKE) clean
+	cd boot && $(MAKE) clean

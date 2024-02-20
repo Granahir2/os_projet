@@ -39,16 +39,15 @@ struct __attribute__((packed)) {
 	x86::segment_descriptor null_entry = x86::segment_descriptor();
 	x86::segment_descriptor code_segment = craft_early_code_segment();
 	x86::segment_descriptor data_segment = craft_early_data_segment();
-	// Add a TSS ? 
 } early_gdt; static_assert(sizeof(early_gdt) == 3*sizeof(x86::segment_descriptor));
 
-constexpr x86::gdt_descriptor early_gdt_desc0 = {
-	sizeof(early_gdt) - 1,
-	(uint32_t)(&early_gdt)
-}; // Weird kludge so that we don't *technically* convert &early_gdt to something
-// other than a 32-bit reference...
 
-extern "C" constexpr x64::gdt_descriptor early_gdt_desc = {early_gdt_desc0, 0};
+extern "C" {x64::gdt_descriptor early_gdt_desc = {sizeof(early_gdt) - 1, 0};}
+extern "C" void ready_gdt_desc() {
+	early_gdt_desc.size = sizeof(early_gdt) - 1;
+	early_gdt_desc.base = (uint64_t)(&early_gdt);
+}
+
 /***************** 4 level paging ******************/
 struct __attribute__((aligned(4096))) page_directory
 {
@@ -72,7 +71,10 @@ constexpr struct {
 
 
 struct __attribute__((aligned(4096))) {
-	uint64_t loneentry;;
+	uint64_t entry0;
+	uint64_t entry1;
+	uint64_t entry2;
+	uint64_t entry3;
 } level3_page_table;
 
 extern "C" {
@@ -83,7 +85,10 @@ struct __attribute__((aligned(4096))) {
 }
 
 void ready_paging() {
-	level3_page_table.loneentry = (uint64_t)(&page_directory_table) | 0b11;
+	level3_page_table.entry0 = (uint64_t)(&page_directory_table.dir0) | 0b11;
+	level3_page_table.entry1 = (uint64_t)(&page_directory_table.dir1) | 0b11;
+	level3_page_table.entry2 = (uint64_t)(&page_directory_table.dir2) | 0b11;
+	level3_page_table.entry3 = (uint64_t)(&page_directory_table.dir3) | 0b11;
 	level4_page_table.loneentry = (uint64_t)(&level3_page_table) | 0b11;
 }
 
@@ -172,7 +177,6 @@ extern "C" void* bootstrap(uint32_t magic, multiboot::info* info) {
 
 	terminal.print("Kernel entry point : %d\n", (uint32_t)(r.entrypoint));
 	ready_paging();
-	//reinterpret_cast<void(*)(void)>(r.entrypoint)();
 	early_gdt.code_segment.flags = 0b1010;
 	return r.entrypoint;
 }

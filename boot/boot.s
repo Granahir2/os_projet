@@ -40,6 +40,17 @@ _start:
 	machine.
 	*/
 
+	/*
+	To set up a stack, we set the esp register to point to the top of the
+	stack (as it grows downwards on x86 systems). This is necessarily done
+	in assembly as languages such as C cannot function without a stack.
+	*/
+	mov $stack_top, %esp
+	pushl %ebx # info struct ptr
+	pushl %eax # multiboot magic value
+
+	call ready_gdt_desc 
+
 	lgdt early_gdt_desc
 
 	ljmp $0x08, $.dummy_target
@@ -50,27 +61,6 @@ _start:
 	mov %cx,%fs
 	mov %cx,%gs
 	mov %cx,%ss
-
-	/*
-	To set up a stack, we set the esp register to point to the top of the
-	stack (as it grows downwards on x86 systems). This is necessarily done
-	in assembly as languages such as C cannot function without a stack.
-	*/
-	mov $stack_top, %esp
-
-	/*
-	This is a good place to initialize crucial processor state before the
-	high-level kernel is entered. It's best to minimize the early
-	environment where crucial features are offline. Note that the
-	processor is not fully initialized yet: Features such as floating
-	point instructions and instruction set extensions are not initialized
-	yet. The GDT should be loaded here. Paging should be enabled here.
-	C++ features such as global constructors and exceptions will require
-	runtime support to work as well.
-	*/
-
-	pushl %ebx # info struct ptr
-	pushl %eax # Magic value
 
 	/*
 	Enter the high-level kernel. The ABI requires the stack is 16-byte
