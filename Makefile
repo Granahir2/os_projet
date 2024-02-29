@@ -1,4 +1,4 @@
-export CXXFLAGS=-O3 -ggdb -ffreestanding -nostdlib -fno-exceptions -fno-rtti -fno-pie -fno-pic\
+export CXXFLAGS=-O0 -ggdb -ffreestanding -nostdlib -fno-exceptions -fno-rtti -fno-pie -fno-pic\
 -std=c++2a -mno-mmx -mno-sse -mgeneral-regs-only -fno-stack-protector -I$(CURDIR) -Wall -Wextra
 export ASFLAGS=-g
 os.iso: bootstrap kernel grub.cfg

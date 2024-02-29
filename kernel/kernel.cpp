@@ -8,6 +8,7 @@
 #include "interrupts.hh"
 #include "x86/descriptors.hh"
 #include "x86/asm_stubs.hh"
+#include "pci.hh"
 
 extern "C" void halt();
 
@@ -55,6 +56,15 @@ __attribute__((interrupt)) void GP_handler(void*) {
 	kprintf("#GP");
 	halt();
 }
+
+
+__attribute__((interrupt)) void APIC_timer(void*) {
+	kprintf("Bopped !\n");
+	int x = 3 / 0;
+	kprintf("Got %d\n", x);
+	interrupt_manager imngr;
+	imngr.send_EOI();	
+}
 	// We don't signal EOI for now : only one interrupt will fire (at most)
 
 x64::gdt_descriptor desc;
@@ -85,9 +95,23 @@ extern "C" void kernel_main(x64::linaddr istack)  {
 	imngr.register_gate(0, 1, (uint64_t)(&DE_handler));
 	imngr.register_gate(0xe, 1, (uint64_t)(&PF_handler));
 	imngr.register_gate(0xd, 1, (uint64_t)(&GP_handler));
+
+	x64::linaddr req_isr[1] = {(x64::linaddr)(&APIC_timer)};
+	
+	uint8_t vector = imngr.register_interrupt_block(1, req_isr);
+	kprintf("Got vector number : %d\n", (int)vector);
 	
 	imngr.enable();
 	kprintf("We chose to enable interrupts, not because it is easy, but because it is hard.\n");	
 	kprintf("Local APIC ID : %d version : %x\n", imngr.apic_id(), imngr.apic_version());
 	kprintf("IO APIC version : %x\n", imngr.ioapic_version());
+
+	
+
+	auto apic = (uint32_t volatile*)imngr.apic_base();
+	apic[0x3e0/4] = 0x3; // div 16
+	apic[0x320/4] = vector | 0x20000;
+	apic[0x380/4] = 0x1000000;
+	//pci::enumerate();
+	for(;;) {}
 }

@@ -60,6 +60,9 @@ void Display::terminal_putentryat(char c, uint8_t color, size_t x, size_t y)
 void Display::terminal_putchar(char c) 
 {
 	if(c == '\n') {
+		for(auto i = terminal_column; i < VGA_WIDTH; ++i) {
+			terminal_putentryat(' ', terminal_color, i, terminal_row);
+		}
 		terminal_column = 0;
 		if(++terminal_row == VGA_HEIGHT) terminal_row = 0;
 		return;
@@ -68,8 +71,7 @@ void Display::terminal_putchar(char c)
 	terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
 	if (++terminal_column == VGA_WIDTH) {
 		terminal_column = 0;
-		if (++terminal_row == VGA_HEIGHT)
-			terminal_row = 0;
+		if (++terminal_row == VGA_HEIGHT) terminal_row = 0;
 	}
 }
  

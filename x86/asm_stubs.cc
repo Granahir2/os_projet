@@ -44,12 +44,15 @@ void reload_tss(uint16_t) {
 void sei() {
 	asm("sti");
 }
-void inb(uint16_t) {
+void cli() {
+	asm("cli");
+}
+uint8_t inb(uint16_t) {
 	asm(R"foo(
 	push %rdx
 	mov %rdi, %rdx
-	xor %rax, %rax, %rax
-	in %dx, %al
+	movabs $0x0, %rax
+	in (%dx), %al
 	pop %rdx
 	)foo");
 }
@@ -59,6 +62,28 @@ void outb(uint16_t, uint8_t) {
 	mov %rdi, %rdx
 	mov %rsi, %rax
 	out %al, %dx
+	pop %rdx
+	)foo");
+}
+
+
+uint32_t inl(uint16_t) {
+	asm(R"foo(
+	push %rdx
+	mov %rdi, %rdx
+	movabs $0x0, %rax
+	in (%dx), %eax
+	pop %rdx
+	ret
+	)foo");
+	return 0;
+}
+void outl(uint16_t, uint32_t) {
+	asm(R"foo(
+	push %rdx
+	mov %rdi, %rdx
+	mov %rsi, %rax
+	out %eax, %dx
 	pop %rdx
 	)foo");
 }
