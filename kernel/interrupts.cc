@@ -56,7 +56,7 @@ void interrupt_manager::register_gate(uint8_t vector, uint8_t ist, x64::linaddr 
 	idt[vector].attributes |= 0x80;
 	idt[vector].offset_lo = isr & 0xffff;
 	idt[vector].cs_segment_selector = 0x08;
-	idt[vector].offset_mid = (isr >> 16) & 0xff;
+	idt[vector].offset_mid = (isr >> 16) & 0xffff;
 	idt[vector].ist_value = ist;
 	idt[vector].offset_hi = isr >> 32;
 }

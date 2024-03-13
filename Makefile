@@ -19,6 +19,9 @@ kernel:
 .PHONY: clean test kernel bootstrap misc
 test: os.iso
 	qemu-system-x86_64 -cdrom os.iso
+debug: os.iso
+	qemu-system-x86_64 -cdrom os.iso -s -S -monitor stdio
+
 clean:
 	$(RM) *.o *.bin *.iso
 	$(RM) -r isodir

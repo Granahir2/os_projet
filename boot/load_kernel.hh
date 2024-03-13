@@ -12,7 +12,7 @@
 struct lk_result {
 	enum {OK, BAD_MAGIC, BAD_ELF, NOT_EXEC, NOT_X64,
 		CANNOT_RELOC, SAFEZONE_VIOLATION} result_code;
-	void* entrypoint;
+	uint32_t entrypoint; // low part of entry point
 	int diagnostic;
 };
 

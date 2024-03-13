@@ -9,7 +9,7 @@ SECTIONS
 	/* We skip over the first 4 megs of memory to leave room for the image file,
 	bootloader and loader.
 	 */
-	. = 4M;
+	. = -2044M;
  
 	.text BLOCK(4K) : ALIGN(4K)
 	{

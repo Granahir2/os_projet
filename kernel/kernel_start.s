@@ -38,9 +38,9 @@ _start:
 	stack (as it grows downwards on x86 systems). This is necessarily done
 	in assembly as languages such as C cannot function without a stack.
 	*/
-	mov $stack_top, %rsp
+	movabs $stack_top, %rsp
 	
-	mov $istack_top, %rdi
+	movabs $istack_top, %rdi
 	/*
 	Enter the high-level kernel. The ABI requires the stack is 16-byte
 	aligned at the time of the call instruction (which afterwards pushes

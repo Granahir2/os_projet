@@ -72,7 +72,8 @@ _start:
 	*/
 	call bootstrap
 
-	pushl $0x00000000
+	pushl $0xffffffff # Hard coded right now...
+	#pushl $0x804007b7
 	pushl %eax
 
 	mov %cr4, %eax

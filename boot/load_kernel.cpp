@@ -39,16 +39,16 @@ lk_result load_kernel(uint32_t safezone_start, void* elf_start) {
 	elf64::file_header* fh = reinterpret_cast<decltype(fh)>(elf_start);
 
 	if(fh->ident[0] != '\x7f' || fh->ident[1] != 'E' || fh->ident[2] != 'L' || fh->ident[3] != 'F') {
-		return {lk_result::BAD_MAGIC, nullptr, 0};
+		return {lk_result::BAD_MAGIC, 0, 0};
 	}
 
 	if(fh->type != elf64::file_header::EXEC && fh->type != elf64::file_header::CORE) {
-		return {lk_result::NOT_EXEC, nullptr, fh->type};
+		return {lk_result::NOT_EXEC, 0, fh->type};
 	}
 
-	if(fh->machine != 0x3e) { return {lk_result::NOT_X64, nullptr, fh->machine};} // Not for x86-64
+	if(fh->machine != 0x3e) { return {lk_result::NOT_X64, 0, fh->machine};} // Not for x86-64
 	// Check fh->machine / proc_flags ?
-	if(fh->obj_version != 1) { return {lk_result::BAD_ELF, nullptr, (int)(fh->obj_version)};}
+	if(fh->obj_version != 1) { return {lk_result::BAD_ELF, 0, (int)(fh->obj_version)};}
 	
 	const uint16_t entry_size = fh->ph_entry_size;
 	const uint16_t entry_num  = fh->ph_entry_num;
@@ -57,16 +57,19 @@ lk_result load_kernel(uint32_t safezone_start, void* elf_start) {
 	for(uint16_t i = 0; i < entry_num; ++i) {
 		if(toparse->type != elf64::program_header::LOAD) {
 			if(toparse->type == elf64::program_header::DYNAMIC) {
-				return {lk_result::CANNOT_RELOC, nullptr, 0};
+				return {lk_result::CANNOT_RELOC, 0, 0};
 			} continue;
 		}
+
+		uint64_t start_addr = toparse->vaddr;
+		if(start_addr >> 63) {start_addr += 2*1024*1024*1024ull;}
 		
-		if(toparse->vaddr < (uint64_t)safezone_start ||
-		   toparse->vaddr + toparse->memsz >= (uint64_t)(0x100000000ull)) {
-			return {lk_result::SAFEZONE_VIOLATION, nullptr, i};
+		if(start_addr < (uint64_t)safezone_start ||
+		   start_addr + toparse->memsz >= (uint64_t)(0x100000000ull)) {
+			return {lk_result::SAFEZONE_VIOLATION, 0, i};
 		}
 
-		uint8_t* memptr = (uint8_t *)(toparse->vaddr);
+		uint8_t* memptr = (uint8_t *)(start_addr);
 		uint8_t* fileptr = (uint8_t *)(elf_start) + toparse->file_off;
 		for(uint64_t i = 0; i < toparse->filesz; ++i) {
 			*(memptr) = *(fileptr); // Not optimized...
@@ -78,5 +81,5 @@ lk_result load_kernel(uint32_t safezone_start, void* elf_start) {
 
 		toparse = reinterpret_cast<decltype(toparse)>((uint8_t*)(toparse) + entry_size);
 	}
-	return {lk_result::OK, (void*)(fh->entrypoint), 0};
+	return {lk_result::OK, (uint32_t)(fh->entrypoint & 0xffffffff), 0};
 }

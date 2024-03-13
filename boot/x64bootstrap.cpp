@@ -71,25 +71,29 @@ constexpr struct {
 
 
 struct __attribute__((aligned(4096))) {
-	uint64_t entry0;
-	uint64_t entry1;
-	uint64_t entry2;
-	uint64_t entry3;
+	uint64_t entry[512];
 } level3_page_table;
 
 extern "C" {
 
 struct __attribute__((aligned(4096))) {
-	uint64_t loneentry;
+	uint64_t phymap_entry;
+	uint64_t filler[510];
+	uint64_t higherhalf_entry;
 } level4_page_table;
 }
 
 void ready_paging() {
-	level3_page_table.entry0 = (uint64_t)(&page_directory_table.dir0) | 0b11;
-	level3_page_table.entry1 = (uint64_t)(&page_directory_table.dir1) | 0b11;
-	level3_page_table.entry2 = (uint64_t)(&page_directory_table.dir2) | 0b11;
-	level3_page_table.entry3 = (uint64_t)(&page_directory_table.dir3) | 0b11;
-	level4_page_table.loneentry = (uint64_t)(&level3_page_table) | 0b11;
+	level3_page_table.entry[0] = (uint64_t)(&page_directory_table.dir0) | 0b11;
+	level3_page_table.entry[1] = (uint64_t)(&page_directory_table.dir1) | 0b11;
+	level3_page_table.entry[2] = (uint64_t)(&page_directory_table.dir2) | 0b11;
+	level3_page_table.entry[3] = (uint64_t)(&page_directory_table.dir3) | 0b11;
+	
+	level3_page_table.entry[510] = level3_page_table.entry[0];
+	level3_page_table.entry[511] = level3_page_table.entry[1];
+
+	level4_page_table.phymap_entry = (uint64_t)(&level3_page_table) | 0b11;
+	level4_page_table.higherhalf_entry = (uint64_t)(&level3_page_table) | 0b11;
 }
 
 int strcmp(char* a, char* b) {
@@ -102,8 +106,9 @@ int strcmp(char* a, char* b) {
 extern "C" void halt();
 extern "C" const char bootstrapper_end; // linker defined symbol
 
-extern "C" void* bootstrap(uint32_t magic, multiboot::info* info) {
+extern "C" uint32_t bootstrap(uint32_t magic, multiboot::info* info) {
 	Display terminal = Display();
+	terminal.clear();
 	terminal.print("Hello World ! 64bit preloader build " __TIMESTAMP__ "\n");
 	if(magic == multiboot::bootloader_magic) {
 		terminal.print("Multiboot confirmed.\n");
@@ -135,13 +140,15 @@ extern "C" void* bootstrap(uint32_t magic, multiboot::info* info) {
 		halt();
 	}
 	
-	terminal.print("Kernel image end : %x\nBootstrapper code end : %x\n",
+	terminal.print("Kernel image end : %x\nBootstrapper code end : %x\nInfo struct ptr : %x\n",
 			(int32_t)(kernel_decl->end),
-			(int32_t)(&bootstrapper_end));
+			(int32_t)(&bootstrapper_end),
+			(int32_t)(info));
 	
 	
 	int32_t safe_offset = (int32_t)(kernel_decl->end) > (int32_t)(&bootstrapper_end) ?
 				(int32_t)(kernel_decl->end) : (int32_t)(&bootstrapper_end);
+	terminal.print("Safezone start : %x\n", safe_offset);
 	auto r = load_kernel(safe_offset, kernel_decl->start);
 	switch(r.result_code) {
 		case lk_result::BAD_MAGIC:
@@ -175,7 +182,7 @@ extern "C" void* bootstrap(uint32_t magic, multiboot::info* info) {
 		halt();
 	}
 
-	terminal.print("Kernel entry point : %d\n", (uint32_t)(r.entrypoint));
+	terminal.print("Kernel entry point : %x\n", (uint32_t)(r.entrypoint));
 	ready_paging();
 	early_gdt.code_segment.flags = 0b1010;
 	return r.entrypoint;

@@ -28,7 +28,7 @@ void reload_descriptors() {
 	mov %ax,%gs
 	mov %ax,%ss
 	push $0x08
-	mov $1f, %rax
+	movabs $1f, %rax
 	push %rax
 	lretq
 	1:
@@ -54,7 +54,9 @@ uint8_t inb(uint16_t) {
 	movabs $0x0, %rax
 	in (%dx), %al
 	pop %rdx
+	ret
 	)foo");
+	return 0;
 }
 void outb(uint16_t, uint8_t) {
 	asm(R"foo(

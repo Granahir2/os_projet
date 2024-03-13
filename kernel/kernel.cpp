@@ -58,15 +58,11 @@ __attribute__((interrupt)) void GP_handler(void*) {
 	halt();
 }
 
-
 __attribute__((interrupt)) void APIC_timer(void*) {
 	kprintf("Bopped !\n");
-	int x = 3 / 0;
-	kprintf("Got %d\n", x);
 	interrupt_manager imngr;
 	imngr.send_EOI();	
 }
-	// We don't signal EOI for now : only one interrupt will fire (at most)
 
 x64::gdt_descriptor desc;
 extern "C" void kernel_main(x64::linaddr istack)  {
@@ -107,6 +103,7 @@ extern "C" void kernel_main(x64::linaddr istack)  {
 	kprintf("Local APIC ID : %d version : %x\n", imngr.apic_id(), imngr.apic_version());
 	kprintf("IO APIC version : %x\n", imngr.ioapic_version());
 
+	/*
 	mem::ph_tree_allocator<10> phalloc;
 	kprintf("Allocated 1 GiB of physical memory\n");
 	int x = phalloc.get_page();
@@ -115,11 +112,15 @@ extern "C" void kernel_main(x64::linaddr istack)  {
 	int z = phalloc.get_page();
 	kprintf("Got physical pages %d %d %d %d\n", x, y, z,phalloc.get_page());
 
-	/*
+	*(uint32_t*)(4) = 0xdeadbeef;
+	*/
 	auto apic = (uint32_t volatile*)imngr.apic_base();
 	apic[0x3e0/4] = 0x3; // div 16
 	apic[0x320/4] = vector | 0x20000;
-	apic[0x380/4] = 0x1000000;*/
+	apic[0x380/4] = 0x1000000;
 	//pci::enumerate();
-	for(;;) {}
+	/*int u = 0;
+	int v = 3;
+	v = 3/0;*/
+	while(true) {}
 }
