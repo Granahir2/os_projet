@@ -10,14 +10,58 @@
 #include "x86/asm_stubs.hh"
 #include "pci.hh"
 #include "mem/phmem_allocator.hh"
+#include "mem/phmem_manager.hh"
+#include "mem/utils.hh"
+#include "mem/vmem_allocator.hh"
+#include "kernel.hh"
 
 extern "C" void halt();
+extern "C" void  memset(void* dst,int ch,size_t sz) {
+	for(size_t s = 0; s < sz; ++s) {
+		((char*)dst)[s] = static_cast<unsigned char>(ch);
+	}
+}
+
+extern "C" void  memcpy(void* dst,const void* src, size_t sz) {
+	for(size_t s = 0; s < sz; ++s) {
+		((char*)dst)[s] = ((const char*)src)[s];
+	}
+}
+
+
+static mem::ph_tree_allocator<10> alloc;
+static mem::VirtualMemoryAllocator<18> kvmem_alloc;
+static mem::phmem_manager phmem_man(0);
+
+extern "C" void* kmmap(void* hint, size_t sz) {
+	if(sz == 0) return NULL;
+	auto r = kvmem_alloc.mmap((x64::linaddr)(hint) + 2*1024*1024*1024ull, sz);
+	if(r == mem::alloc_null) return NULL;
+	phmem_man.back_vmem(r - 2*1024*1024*1024ull, sz, 0);
+	return (void*)(r - 2*1024*1024*1024ull);
+}
+
+x64::phaddr get_phpage() {
+	return alloc.get_page();
+}
 
 void kprintf(const char* str, ...) {	
 	va_list args;
 	va_start(args, str);
 	Display().vprint(str, args);
 	va_end(args);
+}
+
+void test_phmem_resolving(x64::linaddr l) {
+	auto z = mem::resolve_to_phmem(l);
+
+	kprintf("Resolving %p to %p\n",
+		l, z.resolved);
+	if(z.status == mem::phmem_resolvant::NOT_CANONICAL) {
+		kprintf("Because the address wasn't canonical\n");
+	} else if(z.status == mem::phmem_resolvant::NOT_MAPPED) {
+		kprintf("Because the address wasn't mapped\n");
+	}
 }
 
 x64::TSS tss;
@@ -104,23 +148,28 @@ extern "C" void kernel_main(x64::linaddr istack)  {
 	kprintf("IO APIC version : %x\n", imngr.ioapic_version());
 
 	/*
-	mem::ph_tree_allocator<10> phalloc;
-	kprintf("Allocated 1 GiB of physical memory\n");
-	int x = phalloc.get_page();
-	int y = phalloc.get_page();
-	phalloc.release_page(x);
-	int z = phalloc.get_page();
-	kprintf("Got physical pages %d %d %d %d\n", x, y, z,phalloc.get_page());
+	test_phmem_resolving((x64::linaddr)(-1));
+	test_phmem_resolving(0);
+	test_phmem_resolving((1ull << 32));
 
-	*(uint32_t*)(4) = 0xdeadbeef;
-	*/
-	auto apic = (uint32_t volatile*)imngr.apic_base();
-	apic[0x3e0/4] = 0x3; // div 16
-	apic[0x320/4] = vector | 0x20000;
-	apic[0x380/4] = 0x1000000;
-	//pci::enumerate();
-	/*int u = 0;
-	int v = 3;
-	v = 3/0;*/
+	test_phmem_resolving((x64::linaddr)(-4096));
+	mem::phmem_manager phmemm(0);
+	phmemm.back_vmem((x64::linaddr)(-2*4096), 2*4096, 0);
+
+	test_phmem_resolving((x64::linaddr)(-4096));
+	test_phmem_resolving((x64::linaddr)(-2*4096));*/
+
+
+	kvmem_alloc = mem::VirtualMemoryAllocator<18>();
+	kprintf("Requested 2 pages, got : %p\n", kvmem_alloc.mmap(0, 8192));
+	kprintf("Requested 1 page,  got : %p\n", kvmem_alloc.mmap(0, 4096));
+	kprintf("Freed 4096 - 8191\n");
+	kvmem_alloc.munmap(4096, 4096);
+	kprintf("Freed 0 - 4095\n");
+	kvmem_alloc.munmap(0, 4096);
+	kprintf("Requested 1 page, got : %p\n", kvmem_alloc.mmap(0, 4096));	
+	kprintf("Requested 2 pages, got : %p\n", kvmem_alloc.mmap(0, 8192));
+
+	kprintf("Tried to mmap 1 page : %p", kmmap(NULL, 4096));
 	while(true) {}
 }

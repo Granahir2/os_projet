@@ -1,7 +1,6 @@
 #pragma once
 #include <stdint.h>
-#undef NULL
-#define NULL (x64::phaddr)(-1)
+
 namespace x64 {
 using linaddr = uint64_t;
 using phaddr = uint64_t;

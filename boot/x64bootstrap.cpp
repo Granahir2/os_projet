@@ -5,6 +5,7 @@
 
 #include "multiboot.hh"
 #include "x86/descriptors.hh"
+#include "x86/memory.hh"
 #include "boot/load_kernel.hh"
 #include "misc/display.h"
 
@@ -69,10 +70,18 @@ constexpr struct {
 	page_directory dir3 = make_linear_large_page_directory(0xC0000000);
 } page_directory_table;
 
+constexpr struct {
+	page_directory dir0 = make_linear_large_page_directory(0);
+	page_directory dir1 = make_linear_large_page_directory(0x40000000);
+} page_directory_table_highhalf;
 
 struct __attribute__((aligned(4096))) {
 	uint64_t entry[512];
 } level3_page_table;
+
+struct __attribute__((aligned(4096))) {
+	uint64_t entry[512];
+} level3_page_table_highhalf;
 
 extern "C" {
 
@@ -84,16 +93,16 @@ struct __attribute__((aligned(4096))) {
 }
 
 void ready_paging() {
-	level3_page_table.entry[0] = (uint64_t)(&page_directory_table.dir0) | 0b11;
-	level3_page_table.entry[1] = (uint64_t)(&page_directory_table.dir1) | 0b11;
-	level3_page_table.entry[2] = (uint64_t)(&page_directory_table.dir2) | 0b11;
-	level3_page_table.entry[3] = (uint64_t)(&page_directory_table.dir3) | 0b11;
+	level3_page_table.entry[0] = (uint64_t)(&page_directory_table.dir0) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
+	level3_page_table.entry[1] = (uint64_t)(&page_directory_table.dir1) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
+	level3_page_table.entry[2] = (uint64_t)(&page_directory_table.dir2) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
+	level3_page_table.entry[3] = (uint64_t)(&page_directory_table.dir3) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
 	
-	level3_page_table.entry[510] = level3_page_table.entry[0];
-	level3_page_table.entry[511] = level3_page_table.entry[1];
+	level3_page_table_highhalf.entry[510] = (uint64_t)(&page_directory_table_highhalf.dir0) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;  
+	level3_page_table_highhalf.entry[511] = (uint64_t)(&page_directory_table_highhalf.dir1) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
 
-	level4_page_table.phymap_entry = (uint64_t)(&level3_page_table) | 0b11;
-	level4_page_table.higherhalf_entry = (uint64_t)(&level3_page_table) | 0b11;
+	level4_page_table.phymap_entry = (uint64_t)(&level3_page_table) | 0b11| x64::hl_paging_entry::OS_CRAWLABLE;
+	level4_page_table.higherhalf_entry = (uint64_t)(&level3_page_table_highhalf) | 0b11| x64::hl_paging_entry::OS_CRAWLABLE;
 }
 
 int strcmp(char* a, char* b) {

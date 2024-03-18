@@ -10,21 +10,21 @@ public:
 
 	// Allocations can only be page-sized.
 	x64::phaddr get_page() {
-		if(!free_cache) {return NULL;}
+		if(!free_cache) {return -1;}
 		else {
 			x64::phaddr x;
 			int i = 0;
-			for(; (x = children[i].get_page()) == NULL; ++i){}
+			for(; (x = children[i].get_page()) == (x64::phaddr)(-1); ++i){}
 			for(int j = 0; j < 3; ++j) {free_cache &= !children[i].isfull();};			
 
-			return x + i*(1 << (12 + (depth-1)*2));
+			return x + i*(1ull << (12 + (depth-1)*2));
 		}
 	}
 
 	void release_page(x64::phaddr p) {
 		auto k = p >> (depth*2 + 12);
 		if(k < 4) {
-			children[k].release_page(p - k*(1 << (12+(depth-1)*2) ));
+			children[k].release_page(p - k*(1ull << (12+(depth-1)*2) ));
 			if(!children[k].isfull()) {free_cache = true;}
 		}
 	}
@@ -33,13 +33,13 @@ public:
 		auto k_beg = p_beg >> ((depth-1)*2 + 12);
 		auto k_end = p_end >> ((depth-1)*2 + 12);
 		if(k_beg == k_end) {
-			children[k_beg].mark_used(p_beg - k_beg*(1 << (12 + (depth-1)*2)),
-						  p_end - k_beg*(1 << (12 + (depth-1)*2))); 
+			children[k_beg].mark_used(p_beg - k_beg*(1ull << (12 + (depth-1)*2)),
+						  p_end - k_beg*(1ull << (12 + (depth-1)*2))); 
 			for(int j = 0; j < 3; ++j) {free_cache &= !children[j].isfull();};			
 		} else {
-			children[k_beg].mark_used(p_beg - k_beg*(1 << (12 + (depth-1)*2)), (1 << (12 + (depth-1)*2)) - 1);
-			children[k_end].mark_used(0, p_end - k_end*(1 << (12+(depth-1)*2)));
-			for(int i = k_beg + 1; i < k_end; ++i){children[i].mark_used(0, (1 << (12 + (depth-1)*2)) - 1);}
+			children[k_beg].mark_used(p_beg - k_beg*(1ull << (12 + (depth-1)*2)), (1 << (12 + (depth-1)*2)) - 1);
+			children[k_end].mark_used(0, p_end - k_end*(1ull << (12+(depth-1)*2)));
+			for(int i = k_beg + 1; i < k_end; ++i){children[i].mark_used(0, (1ull << (12 + (depth-1)*2)) - 1);}
 		}
 	}
 private:
@@ -48,17 +48,17 @@ private:
 };
 
 template<>
-struct ph_tree_allocator<6> {
+struct ph_tree_allocator<3> {
 public:
 	bool isfull() {return x == 0xffffffffffffffff;};
 	x64::phaddr get_page() {
-		if(isfull()) {return NULL;}
+		if(isfull()) {return -1;}
 		else {
 			for(int j = 0; j < 64; ++j) {
 				if((~x >> j) & 1) {x |= (1<<j); return j*4096;};
 			}
 		}
-		return NULL;
+		return -1;
 	}
 	void release_page(x64::phaddr p) {x &= ~(1 << (p/4096));}
 	void mark_used(x64::phaddr p_beg, x64::phaddr p_end) {

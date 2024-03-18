@@ -104,4 +104,10 @@ uint64_t __attribute__((naked)) rdmsr(uint32_t) {
 	ret
 	)foo");
 }
+
+x64::phaddr __attribute__((naked)) get_cr3() {
+	asm(R"foo(
+	mov %cr3, %rax
+	ret)foo");
+}
 }

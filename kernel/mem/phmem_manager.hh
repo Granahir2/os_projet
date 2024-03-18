@@ -1,14 +1,12 @@
 #pragma once
+#include "x86/memory.hh"
 
 namespace mem {
-class phmem_manager {
+class phmem_manager_int {
 public:
-	virtual bool back_vmem(x64::linaddr where, uint64_t size, uint8_t flags) = 0;
-	virtual void unback_vmem(x64::linaddr where, uint64_t size, uint8_t flags) = 0;
-}
-
-x64::phaddr resolve_to_phmem(x64::linaddr to_resolve); // -1 if linaddr is not mapped
-void switch_paging(x64::linaddr highlevel_table);
+	virtual bool back_vmem(x64::linaddr where, uint64_t size, uint32_t flags) = 0;
+	virtual void unback_vmem(x64::linaddr where, uint64_t size, uint32_t flags) = 0;
+};
 
 
 /* The phmem_small_manager is a *static* physical memory manager.
@@ -17,20 +15,19 @@ void switch_paging(x64::linaddr highlevel_table);
 * add page directories etc.)
 */
 
-template<typename Allocator>
-struct phmem_manager : phmem_manager {
+struct phmem_manager : phmem_manager_int {
 public:
 	phmem_manager(uint64_t sz);
-	bool back_vmem(x64::linaddr where, uint64_t size, uint8_t flags) override;
-	void unback_vmem(x64::linaddr where, uint64_t size, uint8_t flags) override;
+	bool back_vmem(x64::linaddr where, uint64_t size, uint32_t flags) override;
+	void unback_vmem(x64::linaddr where, uint64_t size, uint32_t flags) override;
 
-	void reserve(x64::phyaddr start, uint64_t size); // Register physical memory as unusable for allocation
+	
+	static x64::page_table kpt_repo[1024]; // When the kernel needs *page tables* it will fetch it here, spliting the PDs with PS=1.
+	static int offset;
+
+	//void reserve(x64::phyaddr start, uint64_t size); // Register physical memory as unusable for allocation
 private:
-	template<int lv> 
-	bool crawl_tables(x64::linaddr start, x64::linaddr end, uint16_t flags, hl_page_table* table) {
-
 	uint64_t mem_size;
-	Allocator alloc;
-}
+};
 
 }

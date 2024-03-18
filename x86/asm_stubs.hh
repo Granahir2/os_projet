@@ -1,5 +1,6 @@
 #pragma once
 #include "x86/descriptors.hh"
+#include "x86/memory.hh"
 
 namespace x64 {
 void lgdt(uint64_t desc_ptr);
@@ -15,4 +16,6 @@ void cli();
 void sei();
 
 uint64_t rdmsr(uint32_t msr);
+
+uint64_t get_cr3();
 }

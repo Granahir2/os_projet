@@ -172,10 +172,11 @@ void Display::vprint(const char* str, va_list args) {
                 break;
 	    case 'p':{
 		uint64_t x = va_arg(args, uint64_t);
-		if(x>>32 != 0) {
-			print_number((unsigned int)(x>>32), 16);
+		for(int i = 60; i >= 0; i -= 4) {
+			constexpr char lut[16] = {'0','1','2','3','4','5','6','7',
+						  '8','9','A','B','C','D','E','F'};
+			terminal_putchar(lut[(x >> i)&0xf]);
 		}
-		print_number((unsigned int)(x&0xffffffff), 16);
 		} break;
             case 'x':
                 u = va_arg(args, unsigned int);
