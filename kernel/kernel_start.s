@@ -33,13 +33,14 @@ doesn't make sense to return from this function as the bootloader is gone.
 _start:
 	/* We are in 64 bit mode with flat segmentation and no paging */
 
+#	popq %rsi # memory map buffer pointer
+
 	/*
 	To set up a stack, we set the esp register to point to the top of the
 	stack (as it grows downwards on x86 systems). This is necessarily done
 	in assembly as languages such as C cannot function without a stack.
 	*/
-	movabs $stack_top, %rsp
-	
+	movabs $stack_top, %rsp	
 	movabs $istack_top, %rdi
 	/*
 	Enter the high-level kernel. The ABI requires the stack is 16-byte

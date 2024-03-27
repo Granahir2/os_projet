@@ -1,4 +1,4 @@
-CXXFLAGS += -m64 -mno-red-zone -mcmodel=large
+CXXFLAGS += -m64 -mno-red-zone -mcmodel=large -DKERNEL
 ASFLAGS += -64
 
 kernel.bin: klinker.ld kernel.o kernel_start.o interrupts.o pci.o ../misc/display64.o ../x86/asm_stubs.o \

@@ -18,7 +18,7 @@ kernel:
 
 .PHONY: clean test kernel bootstrap misc
 test: os.iso
-	qemu-system-x86_64 -cdrom os.iso
+	qemu-system-x86_64 -cdrom os.iso -m 4G 
 debug: os.iso
 	qemu-system-x86_64 -cdrom os.iso -s -S -monitor stdio
 

@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
-
+#include "x86/asm_stubs.hh"
 #include "display.h"
 
 
@@ -30,9 +30,7 @@ size_t Display::strlen(const char* str)
 	return len;
 }
  
-Display::Display() : terminal_buffer((uint16_t*)(terminal_buffer_addr)) 
-{
-}
+Display::Display() : terminal_buffer((uint16_t*)(terminal_buffer_addr)) {}
 
 void Display::clear() {
 	terminal_row = 0;
@@ -67,6 +65,13 @@ void Display::terminal_putchar(char c)
 		if(++terminal_row == VGA_HEIGHT) terminal_row = 0;
 		return;
 	}
+#ifdef KERNEL
+	if(c == '\r') {
+		x64::outb(0x3d4, 0x0d);
+		x64::outb(0x3d5, 0);
+		return;
+	}
+#endif
 
 	terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
 	if (++terminal_column == VGA_WIDTH) {

@@ -72,8 +72,7 @@ _start:
 	*/
 	call bootstrap
 
-	pushl $0xffffffff # Hard coded right now...
-	#pushl $0x804007b7
+	pushl $0xffffffff
 	pushl %eax
 
 	mov %cr4, %eax
@@ -102,6 +101,7 @@ _start:
 	mov %cx,%ss
 
 	# We are in compatibility mode. We now jump to long mode
+	mov $memory_map_buffer, %esi
 
 	ljmp $0x08, $.longmode_gate
 .longmode_gate:

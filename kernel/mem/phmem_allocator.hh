@@ -1,21 +1,25 @@
 #pragma once
 #include "x86/memory.hh"
-
+#include "kernel/kernel.hh"
 namespace mem {
 
 template<int depth>
 class ph_tree_allocator {
 public:
 	bool isfull() {return !free_cache;}
-
 	// Allocations can only be page-sized.
 	x64::phaddr get_page() {
-		if(!free_cache) {return -1;}
+		if(!free_cache) { return -1;}
 		else {
 			x64::phaddr x;
 			int i = 0;
 			for(; (x = children[i].get_page()) == (x64::phaddr)(-1); ++i){}
-			for(int j = 0; j < 3; ++j) {free_cache &= !children[i].isfull();};			
+			free_cache = false;
+			for(int j = 0; j < 3; ++j) {free_cache |= !children[j].isfull();};			
+
+			if(free_cache == false) {
+				kprintf("Filled depth = %d\n", depth);
+			}
 
 			return x + i*(1ull << (12 + (depth-1)*2));
 		}
@@ -32,14 +36,17 @@ public:
 	void mark_used(x64::phaddr p_beg, x64::phaddr p_end) {
 		auto k_beg = p_beg >> ((depth-1)*2 + 12);
 		auto k_end = p_end >> ((depth-1)*2 + 12);
+
 		if(k_beg == k_end) {
 			children[k_beg].mark_used(p_beg - k_beg*(1ull << (12 + (depth-1)*2)),
 						  p_end - k_beg*(1ull << (12 + (depth-1)*2))); 
-			for(int j = 0; j < 3; ++j) {free_cache &= !children[j].isfull();};			
+			free_cache = false;
+			for(int j = 0; j < 3; ++j) {free_cache |= !children[j].isfull();};			
 		} else {
 			children[k_beg].mark_used(p_beg - k_beg*(1ull << (12 + (depth-1)*2)), (1 << (12 + (depth-1)*2)) - 1);
 			children[k_end].mark_used(0, p_end - k_end*(1ull << (12+(depth-1)*2)));
-			for(int i = k_beg + 1; i < k_end; ++i){children[i].mark_used(0, (1ull << (12 + (depth-1)*2)) - 1);}
+			for(unsigned int i = k_beg + 1; i < k_end; ++i){children[i].mark_used(0, (1ull << (12 + (depth-1)*2)) - 1);}
+			for(int j = 0; j < 3; ++j) {free_cache |= !children[j].isfull();};			
 		}
 	}
 private:

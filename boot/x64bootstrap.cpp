@@ -8,6 +8,7 @@
 #include "x86/memory.hh"
 #include "boot/load_kernel.hh"
 #include "misc/display.h"
+#include "misc/memory_map.hh"
 
 constexpr multiboot::header craft_multiboot_header() {
 	multiboot::header header;
@@ -18,6 +19,10 @@ constexpr multiboot::header craft_multiboot_header() {
 };
 extern "C" __attribute__((section(".multiboot")))
 constexpr multiboot::header multiboot_header = craft_multiboot_header();
+
+extern "C" {
+memory_map_entry memory_map_buffer[256];
+}
 
 /***************** GDT ******************/
 constexpr x86::segment_descriptor craft_early_code_segment() {
@@ -122,6 +127,25 @@ extern "C" uint32_t bootstrap(uint32_t magic, multiboot::info* info) {
 	if(magic == multiboot::bootloader_magic) {
 		terminal.print("Multiboot confirmed.\n");
 	} else { halt();}
+
+	if(info->mmap_length <= 0 || info->mmap_length > 256) {
+		terminal.print("Memory map not available or corrupted. Fatal.\n");
+	} else {
+		auto* ptr = (char*)info->mmap_addr;
+		multiboot::mmap_entry x;
+		int offset = 0;
+		terminal.print("Buffer size : %d\n", info->mmap_length); 
+		unsigned int i = 0;
+		for(; offset < info->mmap_length; ++i, offset += x.size + 4) {
+			x = *(multiboot::mmap_entry*)(&ptr[offset]);
+			memory_map_buffer[i].base =  x.base_addr;
+			memory_map_buffer[i].length = x.length;
+			memory_map_buffer[i].type = (decltype(memory_map_entry::type))x.type;
+			
+			terminal.print("offset %d : %p %p %d (%d)\n", offset, x.base_addr, x.length, x.type, x.size);
+		}
+		memory_map_buffer[i] = {0, 0, memory_map_entry::BADRAM};
+	}
 	/*
 	   In the future we probably want to setup reporting of e.g. the memory map to the
 	   main kernel using the multiboot info structure. For now we load directly the

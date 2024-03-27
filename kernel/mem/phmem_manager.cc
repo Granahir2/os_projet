@@ -130,6 +130,22 @@ bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags)
 	return true;
 }
 
-void phmem_manager::unback_vmem(x64::linaddr where, uint64_t size, uint32_t flags) {}
+void phmem_manager::unback_vmem(x64::linaddr where, uint64_t size, uint32_t flags) {	
+	auto start = where;
+	auto end = where - 1 + size;
+	if((int64_t)where <= -(1ll << 48) || (int64_t)(where) >= (1ll >> 48)) {return;}
+	bool iskernel = ((int64_t)where < 0);
+	struct {
+		void operator()(hl_paging_entry*) {};
+	} callback_dir;
+	struct {
+		void operator()(pte* pt_entry) {
+			pt_entry->content &= ~0x1;
+			release_phpage(pt_entry->content & address_mask);};
+	} callback_page;
+
+	auto cr3 = (hl_page_table*)(x64::get_cr3());
+	crawl_tables<4>(start,end,cr3,callback_dir,callback_page,iskernel);
+}
 
 }
