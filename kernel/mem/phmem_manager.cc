@@ -2,6 +2,9 @@
 #include "utils.hh"
 #include "x86/asm_stubs.hh"
 #include "kernel/kernel.hh"
+#include "kstdlib/cstring.hh"
+#include "kstdlib/cstdio.hh"
+
 #include <cstddef>
 
 namespace mem {
@@ -119,7 +122,7 @@ bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags)
 	// PML4 (512 PML3)
 
 	struct {
-		void operator()(hl_paging_entry*) {};
+		void operator()(hl_paging_entry* hl_entry) {hl_entry->content |=  0b11;};
 	} callback_dir;
 	struct {
 		void operator()(pte* pt_entry) {pt_entry->content = (get_phpage() & address_mask) | 0b11;};

@@ -5,6 +5,7 @@
 namespace mem {
 	struct phmem_resolvant {
 		enum {OK, NOT_MAPPED, NOT_CANONICAL} status;
+		bool isRW;
 		x64::phaddr resolved;
 	};
 

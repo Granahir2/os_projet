@@ -47,7 +47,7 @@ void sei() {
 void cli() {
 	asm("cli");
 }
-uint8_t inb(uint16_t) {
+uint8_t __attribute__((naked)) inb(uint16_t) {
 	asm(R"foo(
 	push %rdx
 	mov %rdi, %rdx
@@ -69,7 +69,7 @@ void outb(uint16_t, uint8_t) {
 }
 
 
-uint32_t inl(uint16_t) {
+uint32_t __attribute__((naked)) inl(uint16_t) {
 	asm(R"foo(
 	push %rdx
 	mov %rdi, %rdx
@@ -108,6 +108,12 @@ uint64_t __attribute__((naked)) rdmsr(uint32_t) {
 x64::phaddr __attribute__((naked)) get_cr3() {
 	asm(R"foo(
 	mov %cr3, %rax
+	ret)foo");
+}
+
+void __attribute__((naked)) load_cr3(x64::phaddr) {
+	asm(R"foo(
+	mov %rdi, %cr3
 	ret)foo");
 }
 }

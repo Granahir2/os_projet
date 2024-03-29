@@ -28,9 +28,9 @@ bootloader will jump to this position once the kernel has been loaded. It
 doesn't make sense to return from this function as the bootloader is gone.
 */
 .section .text
-.global _start
-.type _start, @function
-_start:
+.global _startc
+.type _startc, @function
+_startc:
 	/* We are in 64 bit mode with flat segmentation and no paging */
 
 #	popq %rsi # memory map buffer pointer
@@ -74,4 +74,4 @@ halt:	cli
 Set the size of the _start symbol to the current location '.' minus its start.
 This is useful when debugging or when you implement call tracing.
 */
-.size _start, . - _start
+.size _startc, . - _startc

@@ -17,5 +17,6 @@ void sei();
 
 uint64_t rdmsr(uint32_t msr);
 
-uint64_t get_cr3();
+x64::phaddr get_cr3();
+void load_cr3(x64::phaddr);
 }
