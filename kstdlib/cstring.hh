@@ -14,12 +14,18 @@ int strncmp(const char* a, const char* b, size_t count);
 
 
 const char* strchr(const char* str, int ch);
-//char* strchr(char* str, int ch);
+//char* variant through macro ?
 
-char* strrchr(char* str, int ch);
+const char* strrchr(const char* str, int ch);
+//char* variant through macro ?
+
+size_t strspn(const char* dest, const char* src);
+size_t strcspn(const char* dest, const char* src);
+
+const char* strpbrk(const char* dest, const char* src);
 
 /*
-Not yet implemented : strspn, strcspn, strpbrk, strstr, strtok, strerror
+Not yet implemented : strstr, strtok, strerror
 Not implemented : strcoll
 */
 

@@ -83,7 +83,7 @@ public:
 		if(k_beg >= 64) return;
 		if(k_end >= 64) k_end = 63;
 
-		for(int i = k_beg; i <= k_end; ++i) {
+		for(unsigned i = k_beg; i <= k_end; ++i) {
 			x |= 1ull << i;
 		}
 	}

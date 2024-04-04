@@ -17,6 +17,7 @@
 
 #include "kstdlib/cstring.hh"
 #include "kstdlib/cstdio.hh"
+#include <new>
 
 static mem::ph_tree_allocator<10> alloc;
 static mem::VirtualMemoryAllocator<18> kvmem_alloc;
@@ -38,6 +39,11 @@ extern "C" void kmunmap(void* ptr, size_t sz) {
 	if(sz == 0) return;
 	kvmem_alloc.munmap((x64::linaddr)ptr + 2*1024*1024*1024ull, sz);
 	phmem_man.unback_vmem((x64::linaddr)ptr, sz, 0);
+}
+
+
+extern "C" void assert(bool b, const char* c) {
+	if(!b) { printf(c); halt(); }
 }
 
 x64::phaddr get_phpage() {auto x = alloc.get_page(); return x;}
@@ -93,6 +99,10 @@ __attribute__((interrupt)) void PF_handler(void*) {
 	printf("#PF");
 	halt();
 }
+__attribute__((interrupt)) void NP_handler(void*) {
+	printf("#NP");
+	halt();
+}
 __attribute__((interrupt)) void GP_handler(void*) {
 	printf("#GP");
 	halt();
@@ -114,7 +124,23 @@ extern "C" int kernel_end;
 
 x64::gdt_descriptor desc;
 extern "C" void kernel_main(x64::linaddr istack, memory_map_entry* mmap)  {
-    	mem::default_pages_init();
+    
+	gdt.tss_desc.inner.access = 0x89; // 64 bit present available TSS
+	gdt.tss_desc.inner.flags = 0;
+	gdt.tss_desc.set_base((x64::linaddr) (&tss));
+	gdt.tss_desc.set_limit(0x67);
+
+	gdt.code_segment = craft_code_segment();
+	gdt.data_segment = craft_data_segment();
+	desc = {sizeof(gdt) - 1, (x64::linaddr)(&gdt)}; 
+
+	x64::lgdt((uint64_t)(&desc));
+	x64::reload_descriptors();
+	x64::reload_tss(0x18);
+
+
+
+	mem::default_pages_init();
 	Display().clear();
 
 	serial::portdriver com(0x3f8);
@@ -173,23 +199,11 @@ extern "C" void kernel_main(x64::linaddr istack, memory_map_entry* mmap)  {
 					     alloc.children[2].isfull(),
 					     alloc.children[3].isfull());
 
-	gdt.tss_desc.inner.access = 0x89; // 64 bit present available TSS
-	gdt.tss_desc.inner.flags = 0;
-	gdt.tss_desc.set_base((x64::linaddr) (&tss));
-	gdt.tss_desc.set_limit(0x67);
-
-	gdt.code_segment = craft_code_segment();
-	gdt.data_segment = craft_data_segment();
-	desc = {sizeof(gdt) - 1, (x64::linaddr)(&gdt)}; 
-
-	x64::lgdt((uint64_t)(&desc));
-	x64::reload_descriptors();
-	x64::reload_tss(0x18);
-
 	interrupt_manager imngr;
 	printf("Local APIC base: %p\n", imngr.apic_base());
 	imngr.register_gate(0, 1, (uint64_t)(&DE_handler));
 	imngr.register_gate(0xe, 1, (uint64_t)(&PF_handler));
+	imngr.register_gate(0xb, 1, (uint64_t)(&NP_handler));	
 	imngr.register_gate(0xd, 1, (uint64_t)(&GP_handler));
 	imngr.register_gate(0x8, 1, (uint64_t)(&DF_handler));
 	x64::linaddr req_isr[1] = {(x64::linaddr)(&APIC_timer)};
@@ -216,16 +230,19 @@ extern "C" void kernel_main(x64::linaddr istack, memory_map_entry* mmap)  {
 
 	x = kmmap(NULL, 4*1024*1024);
 	printf("Allocating 4 MiB : %p\n", x);
-	for(int i = 0; i < 1024; ++i) {
-		test_phmem_resolving(x64::linaddr(x) + i*4096);
-	}
-	
+
 	memset(x, 0, 4*1024*1024ull);
 	puts("Still alive !");
+
+	int* y = new int[4];
+	int* z = new int[2048];
+	*y = 0;
+	printf("%p %p\n", y,z);
 	while(true) {
 		if(int s = stdout->read(x, 4*1024*1024ull)) {
 			puts("Received a nice message !");
 		}
 	}
+
 	halt();
 }

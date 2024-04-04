@@ -57,23 +57,41 @@ int strncmp(const char* a, const char* b, size_t n) {
 const char* strchr(const char* str, int ch) {
 	for(; *str != (unsigned char)ch && *str != '\0'; str++);
 	if(*str == (unsigned char)ch) {return str;}
-	else {return NULL;}
+	else {return nullptr;}
 }
 
-/*
-char* strchr(char* str, int ch) {
-	for(; *str != (unsigned char)ch && *str != '\0'; str++);
-	if(*str == (unsigned char)ch) {return str;}
-	else {return NULL;}
-}*/
-
-
-
-char* strrchr(char* str, int ch) {
-	char* lastfound = NULL;
+const char* strrchr(const char* str, int ch) {
+	const char* lastfound = nullptr;
 	for(; *str != '\0'; str++) {if(*str == (unsigned char)ch) {lastfound = str;}}
 	if((unsigned char)ch == '\0'){return str;}
 	else {return lastfound;}
+}
+
+size_t strspn(const char* dest, const char* src) {
+	bool cache[1 << (sizeof(char) * 8)];
+	memset(cache, 0, sizeof(char) * 8 * sizeof(bool));
+
+	for(;*src != '\0'; src++) {cache[(unsigned char)*src] = true;}
+	size_t r = 0;
+	for(;cache[(unsigned char)*dest] == true && *dest != '\0'; dest++, r++);
+	return r;
+}
+
+
+size_t strcspn(const char* dest, const char* src) {
+	bool cache[1 << (sizeof(char) * 8)];
+	memset(cache, true, sizeof(char) * 8 * sizeof(bool));
+
+	for(;*src != '\0'; src++) {cache[(unsigned char)*src] = false;}
+	size_t r = 0;
+	for(;cache[(unsigned char)*dest] == true && *dest != '\0'; src++, r++);
+	return r;
+}
+
+const char* strpbrk(const char* dest, const char* src) {
+	auto r = strspn(dest, src);
+	if(dest[r] == '\0') return nullptr;
+	return dest+r;
 }
 
 void* memchr(void* s, int c, size_t n) {

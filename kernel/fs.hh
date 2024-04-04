@@ -28,6 +28,8 @@ struct statbuf { // Result from stat
 
 class filehandler {
 public:
+	virtual ~filehandler() = default;
+
 	virtual size_t write(const void* buf, size_t count) = 0; // POSIX semantics
 	virtual size_t read(void* buf, size_t count) = 0;
 	
@@ -35,9 +37,23 @@ public:
 	virtual statbuf stat() = 0;
 };
 
+
+enum drit_status {OK, LINK, UNDERRUN};
+class dir_iterator {
+public:
+	virtual ~dir_iterator() = default;
+
+	virtual void operator<<(const char* str) = 0;
+	virtual const char* get_canonical_path() = 0;
+	
+	filehandler* open_target(const char* str, int mode) = 0;
+};
+
 class fs {
 public:
-	fs(filehandler*) = delete;
+	//fs(filehandler*);
 	// The filehandler given in argument represents the file on which lives the fs (e.g. /dev/sda)
-	virtual filehandler* open(const char* path) = 0;
+	
+	virtual ~fs() = default;
+	virtual dir_iterator* get_iterator() = 0;
 };

@@ -133,7 +133,7 @@ bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags)
 	return true;
 }
 
-void phmem_manager::unback_vmem(x64::linaddr where, uint64_t size, uint32_t flags) {	
+void phmem_manager::unback_vmem(x64::linaddr where, uint64_t size, [[maybe_unused]] uint32_t flags) {	
 	auto start = where;
 	auto end = where - 1 + size;
 	if((int64_t)where <= -(1ll << 48) || (int64_t)(where) >= (1ll >> 48)) {return;}

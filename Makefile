@@ -1,4 +1,4 @@
-export CXXFLAGS=-ggdb -fno-rtti -fno-pie -fpic -fno-exceptions -ffreestanding\
+export CXXFLAGS= -ggdb -fno-rtti -fno-pie -fpic -fno-exceptions -ffreestanding\
 -std=c++2a -mno-mmx -mno-sse -mgeneral-regs-only -fno-stack-protector -I$(CURDIR) -Wall -Wextra\
 -nostdlib
 
@@ -28,7 +28,7 @@ FORCE:
 test: os.iso
 	qemu-system-x86_64 -cdrom os.iso -m 4G -serial stdio | tee log.txt
 debug: os.iso
-	qemu-system-x86_64 -cdrom os.iso -monitor stdio -no-shutdown -no-reboot -d int
+	qemu-system-x86_64 -cdrom os.iso -s -S -monitor stdio -no-shutdown -no-reboot -d int
 clean:
 	$(RM) *.o *.bin *.iso
 	$(RM) -r isodir

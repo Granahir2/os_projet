@@ -133,7 +133,7 @@ extern "C" uint32_t bootstrap(uint32_t magic, multiboot::info* info) {
 	} else {
 		auto* ptr = (char*)info->mmap_addr;
 		multiboot::mmap_entry x;
-		int offset = 0;
+		unsigned int offset = 0;
 		terminal.print("Buffer size : %d\n", info->mmap_length); 
 		unsigned int i = 0;
 		for(; offset < info->mmap_length; ++i, offset += x.size + 4) {
