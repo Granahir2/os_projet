@@ -2,7 +2,6 @@
 
 #include "x86/descriptors.hh"
 #include "x86/memory.hh"
-#include <cstdint>
 
 struct interrupt_manager {
 public:

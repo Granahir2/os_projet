@@ -41,6 +41,18 @@ void reload_tss(uint16_t) {
 	)foo");
 }
 
+void enable_sse() {
+	asm(R"foo(
+	mov %cr0, %rax
+	and $0xfffb, %ax
+	or  $0x2, %ax
+	mov %rax, %cr0
+	mov %cr4, %rax
+	or  $0x600, %rax
+	mov %rax, %cr4
+	)foo");
+}
+
 void sei() {
 	asm("sti");
 }

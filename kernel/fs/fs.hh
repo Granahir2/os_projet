@@ -1,6 +1,7 @@
 #pragma once
-#include <cstdint>
-#include <ctime>
+#include "kstdlib/memory.hh"
+#include "kstdlib/string.hh"
+#include "kernel/posix_except.hh"
 /*
 Abstract classes implementing a file system
 File systems are derived classes which implement the interface (and maybe more).
@@ -14,19 +15,20 @@ position of a file on the disk, seek pos, permissions, and more generally all ne
 
 When destroyed, the filehandler gracefully closes the file.
 */
-typedef size_t off_t;
 
-enum seekref {SET, CUR, END}; // Tells us whether to offset from the beginning, current pos or end of a file.
 
-struct statbuf { // Result from stat
-	time_t tcreat;
-	time_t tmod;
-
-	int mode;
-	uint16_t auth; // Authorization word; like Linux
-};
+#include "concepts.hh"
 
 class filehandler {
+
+// perm_fh (defined in templates.hh) wraps an object which implements a file to give
+// it mode semantics.
+// filehandler can only be instantiated through perm_fh : mode semantics *must* be respected.
+template<ImplementsFile T>
+friend class perm_fh;
+private:
+	filehandler() = default;
+
 public:
 	virtual ~filehandler() = default;
 
@@ -36,18 +38,21 @@ public:
 	virtual off_t seek(off_t offset, seekref whence) = 0;
 	virtual statbuf stat() = 0;
 };
+/***********************************/
 
-
-enum drit_status {OK, LINK, UNDERRUN};
 class dir_iterator {
 public:
 	virtual ~dir_iterator() = default;
 
-	virtual void operator<<(const char* str) = 0;
-	virtual const char* get_canonical_path() = 0;
-	
-	filehandler* open_target(const char* str, int mode) = 0;
+	virtual drit_status operator<<(const char* str) = 0;
+	virtual string get_canonical_path() = 0;
+
+	virtual smallptr<filehandler> open_file([[maybe_unused]] const char* str,[[maybe_unused]] int mode) {return nullptr;}
+	virtual string readlink([[maybe_unused]] const char* str) {return string();};
+
+	dir_iterator() = default;
 };
+
 
 class fs {
 public:

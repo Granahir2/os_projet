@@ -5,5 +5,5 @@
 void* operator new(size_t len);
 void* operator new[](size_t len);
 
-void  operator delete(void* ptr, size_t len);
-void  operator delete[](void* ptr);
+void  operator delete(void* ptr, size_t len) noexcept;
+void  operator delete[](void* ptr) noexcept;

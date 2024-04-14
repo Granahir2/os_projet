@@ -209,7 +209,7 @@ extern "C" uint32_t bootstrap(uint32_t magic, multiboot::info* info) {
 	
 	terminal.print("Loaded kernel in memory.\n");
 
-	uint32_t edx, dummy;	
+	unsigned int edx, dummy;	
 	if((__get_cpuid(0x80000001, &dummy, &dummy, &dummy, &edx) == 0) || ((edx >> 29) & 0x1) == 0) {
 		terminal.print(" 64 bit mode is not supported ! Stopping.\n");
 		halt();

@@ -1,7 +1,5 @@
 #include "cstring.hh"
-#include <cstdint>
-
-extern "C" {
+#include <stdint.h>
 
 char* strcpy(char* __restrict dest, const char* __restrict src) {
 	auto retval = dest;
@@ -46,7 +44,8 @@ int strcmp(const char* a, const char* b) {
 
 int strncmp(const char* a, const char* b, size_t n) {
 	char delta = 0;
-	for(size_t cnt = n; cnt > 0 && ((delta = *a - *b) == 0) && !(*a == '\0' && *b == '\0'); a++,b++);
+	for(size_t cnt = n; cnt > 0 && ((delta = *a - *b) == 0) && !(*a == '\0' && *b == '\0');
+	a++,b++,cnt--);
 
 	if(delta > 0) {return 1;}
 	else if(delta < 0) {return -1;}
@@ -60,6 +59,12 @@ const char* strchr(const char* str, int ch) {
 	else {return nullptr;}
 }
 
+char* strchr(char* str, int ch) {
+	for(; *str != (unsigned char)ch && *str != '\0'; str++);
+	if(*str == (unsigned char)ch) {return str;}
+	else {return nullptr;}
+}
+
 const char* strrchr(const char* str, int ch) {
 	const char* lastfound = nullptr;
 	for(; *str != '\0'; str++) {if(*str == (unsigned char)ch) {lastfound = str;}}
@@ -67,6 +72,12 @@ const char* strrchr(const char* str, int ch) {
 	else {return lastfound;}
 }
 
+char* strrchr(char* str, int ch) {
+	char* lastfound = nullptr;
+	for(; *str != '\0'; str++) {if(*str == (unsigned char)ch) {lastfound = str;}}
+	if((unsigned char)ch == '\0'){return str;}
+	else {return lastfound;}
+}
 size_t strspn(const char* dest, const char* src) {
 	bool cache[1 << (sizeof(char) * 8)];
 	memset(cache, 0, sizeof(char) * 8 * sizeof(bool));
@@ -93,6 +104,19 @@ const char* strpbrk(const char* dest, const char* src) {
 	if(dest[r] == '\0') return nullptr;
 	return dest+r;
 }
+
+// very naïve version
+const char* strstr(const char* str, const char* substr) {
+	const char* base = str;
+	size_t n = strlen(substr);
+	while(*base != '\0') {
+		if(strncmp(base, substr, n) == 0) {return base;}
+		base++;
+	}
+	return nullptr;
+}
+
+extern "C" {
 
 void* memchr(void* s, int c, size_t n) {
 	auto p = (unsigned char*)s;

@@ -138,11 +138,6 @@ public:
 };
 
 
-/*
-Beware : we may over-allocate and then munmap leaves garbage; this has to be
-handled outside the allocator. Probably we use a table of entries like
-base/apparent len/effective len
-*/
 template <short depth, short log2_page_size = 12>
 class VirtualMemoryAllocator 
 {

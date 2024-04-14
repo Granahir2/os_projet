@@ -51,12 +51,11 @@ void* operator new(size_t len) {
 
 			// Naïve search, can surely do faster
 			unsigned offset = find_aperture(slotlen, pg);
-			printf("Got offset = %u\n", offset);
 			assert(offset != 503, "[new] Aperture promised but not found");
 			for(unsigned j = 0; j < slotlen; ++j) {
-				assert(!(pg->bitmap[(j+offset)/64] >> ((j+offset)%64)),
+				assert(!((pg->bitmap[(j+offset)/64] >> ((j+offset)%64))&1ull),
 					"[new] overwriting alloc");
-				pg->bitmap[(j+offset)/64] |= 1ull << ((j+offset)%64);
+				pg->bitmap[(j+offset)/64] |= (1ull << ((j+offset)%64));
 			}
 			auto new_maxapert = find_max_apertsize(pg);
 
@@ -110,14 +109,18 @@ void* operator new[](size_t len) {
 	return &p[1];
 }
 
-void operator delete(void* ptr, size_t len) {
-	if(len == 0) return;
+void operator delete(void* ptr, size_t len) noexcept {
+	if(len == 0 || ptr == nullptr) return;
+
+	//printf("[delete] %p %u\n", ptr, (unsigned)len);
 
 	_smallpage* page;
 	unsigned prev_conseq;
 
 	if(((intptr_t)ptr & 0xfff) == 0) { // We *may* be in a big alloc
-		size_t numpage = (len + 4095) / 4096;
+		size_t numpage = (len + 2*sizeof(_smallpage*) + sizeof(uint64_t)*8  + 4095)/4096;
+		//printf("Big dealloc, numpage = %u\n", (unsigned)numpage);
+
 		kmunmap(ptr, (numpage - 1)*4096); // dealloc all head pages
 
 		page = &((_smallpage*)(ptr))[numpage-1];
@@ -125,7 +128,12 @@ void operator delete(void* ptr, size_t len) {
 
 		size_t num_lastpg = (len % 4096 + 7)/8; // number of slots in last page
 		for(unsigned i = 0; i < num_lastpg; ++i) {
-			assert((page->bitmap[i/64] >> (i%64)) & 1, "[new] double delete?");
+			if(!((page->bitmap[i/64] >> (i%64)) & 1ull)) {
+				printf("double delete ? With i = %u, numpage = %u, num_lastpg = %u\n", i,
+					(unsigned)numpage,
+					(unsigned)num_lastpg);
+				halt();
+			}//, "[new] double delete?");
 
 			page->bitmap[i/64] &= ~(1ull << (i%64));
 		}
@@ -138,7 +146,7 @@ void operator delete(void* ptr, size_t len) {
 		
 		unsigned start = ((uintptr_t)ptr % 4096) / 8;
 		for(unsigned i = 0; i < (len+7)/8; ++i) {
-			assert((page->bitmap[i/64] >> (i%64)) & 1, "[new] double delete?");
+			assert((page->bitmap[(start+i)/64] >> ((start+i)%64)) & 1ull, "[new] double delete ?");
 			page->bitmap[(start+i)/64] &= ~(1ull << ((start+i)%64));
 		}
 	}
@@ -167,7 +175,8 @@ void operator delete(void* ptr, size_t len) {
 	_head.entry[curr_conseq] = page;
 }
 
-void operator delete[](void* ptr) {
-	auto s = *(size_t*)ptr;
-	operator delete(ptr, s + sizeof(size_t));
+void operator delete[](void* ptr) noexcept{
+	if(ptr == nullptr) return;
+	auto s = ((size_t*)ptr)[-1];
+	operator delete(&(((size_t*)ptr)[-1]), s + sizeof(size_t));
 }

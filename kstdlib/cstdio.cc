@@ -1,7 +1,7 @@
 #include "cstdio.hh"
 #include "cstring.hh"
 #include "kernel/kernel.hh"
-#include <cstdarg>
+#include "stdarg.h"
 
 extern "C" {
 FILE* stdout = nullptr;
@@ -84,7 +84,7 @@ int vaprintf(const char* src, va_list arglist) {
 			{unsigned int x = va_arg(arglist, unsigned int);
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
-			 written += print_number(x, buffer, 16);
+			 written += print_number(x, buffer, 10);
 			 puts(buffer);} break;
 		case 'p':
 			{uintptr_t x = va_arg(arglist, uintptr_t);
@@ -112,6 +112,13 @@ int printf(const char* src,...) {
 	va_end(arglist);
 	return r;
 }
-
-
+/*
+int sscanf(const char* src, const char* format, ...){
+	va_list arglist;
+	va_start(arglist, format);
+	auto r = vasscanf(src, arglist);
+	va_end(arglist);
+	return r;
+}
+*/
 }

@@ -1,7 +1,7 @@
 CXXFLAGS += -m32
 ASFLAGS += -32
 bootstrap.bin: x64bootstrap.o load_kernel.o boot.o display32.o linker.ld
-	ld -g -T linker.ld -melf_i386 -o bootstrap.bin x64bootstrap.o load_kernel.o boot.o display32.o
+	$(LD) -g -T linker.ld -melf_i386 -o bootstrap.bin x64bootstrap.o load_kernel.o boot.o display32.o
 
 boot.o: boot.s
 x64bootstrap.o: x64bootstrap.cpp multiboot.hh load_kernel.hh ../x86/descriptors.hh

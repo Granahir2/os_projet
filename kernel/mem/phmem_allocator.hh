@@ -66,17 +66,17 @@ public:
 template<>
 struct ph_tree_allocator<3> { // 64 = 4^3 pages
 public:
-	bool isfull() {return x == 0xffffffffffffffff;};
+	bool isfull() {return x == 0xffffffffffffffffull;};
 	x64::phaddr get_page() {
 		if(isfull()) {return phalloc_null;}
 		else {
 			for(int j = 0; j < 64; ++j) {
-				if((~x >> j) & 1) {x |= (1ull<<j); return j*4096;};
+				if((~x >> j) & 1ull) {x |= (1ull<<j); return j*4096;};
 			}
 		}
 		return phalloc_null;
 	}
-	void release_page(x64::phaddr p) {x &= ~(1 << (p/4096));}
+	void release_page(x64::phaddr p) {x &= ~(1ull << (p/4096));}
 	void mark_used(x64::phaddr p_beg, x64::phaddr p_end) {
 		auto k_beg = p_beg/4096;
 		auto k_end = p_end/4096;
@@ -84,8 +84,9 @@ public:
 		if(k_end >= 64) k_end = 63;
 
 		for(unsigned i = k_beg; i <= k_end; ++i) {
-			x |= 1ull << i;
+			x |= (1ull << i);
 		}
+
 	}
 
 	uint64_t x = 0;

@@ -1,53 +1,34 @@
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include "misc/display.h"
 #include "interrupts.hh"
 #include "x86/descriptors.hh"
 #include "x86/asm_stubs.hh"
 #include "pci.hh"
-#include "mem/phmem_allocator.hh"
-#include "mem/phmem_manager.hh"
 #include "mem/utils.hh"
-#include "mem/vmem_allocator.hh"
 #include "mem/default_pages.hh"
 #include "kernel.hh"
 #include "misc/memory_map.hh"
 #include "drivers/serial/serial.hh"
-
+#include "fs/rootfs.hh"
 #include "kstdlib/cstring.hh"
 #include "kstdlib/cstdio.hh"
 #include <new>
-
-static mem::ph_tree_allocator<10> alloc;
-static mem::VirtualMemoryAllocator<18> kvmem_alloc;
-static mem::phmem_manager phmem_man(0);
-
-unsigned long long min(unsigned long long a, unsigned long long b) {
-	if( a < b) {return a;} else {return b;}
+#include <exception>
+#include "kstdlib/string.hh"
+#include "fs/devfs.hh"
+#include "drivers/vga_text/vga_text.hh"
+#include "kstdlib/cstdlib.hh"
+#include "kstdlib/stdexcept.hh"
+extern "C" void abort() {
+	puts("Kernel panic !\n");
+	halt();
 }
-
-extern "C" void* kmmap(void* hint, size_t sz) {
-	if(sz == 0) return NULL;
-	auto r = kvmem_alloc.mmap((x64::linaddr)(hint) + 2*1024*1024*1024ull, sz);
-	if(r == mem::alloc_null) return NULL;
-	phmem_man.back_vmem(r - 2*1024*1024*1024ull, sz, 0);
-	return (void*)(r - 2*1024*1024*1024ull);
-}
-
-extern "C" void kmunmap(void* ptr, size_t sz) {
-	if(sz == 0) return;
-	kvmem_alloc.munmap((x64::linaddr)ptr + 2*1024*1024*1024ull, sz);
-	phmem_man.unback_vmem((x64::linaddr)ptr, sz, 0);
-}
-
 
 extern "C" void assert(bool b, const char* c) {
 	if(!b) { printf(c); halt(); }
 }
 
-x64::phaddr get_phpage() {auto x = alloc.get_page(); return x;}
-void release_phpage(x64::phaddr p) {alloc.release_page(p);}
 
 void test_phmem_resolving(x64::linaddr l) {
 	auto z = mem::resolve_to_phmem(l);
@@ -66,8 +47,6 @@ void test_phmem_resolving(x64::linaddr l) {
 	} else {puts("RO\n");}
 }
 
-x64::TSS tss;
-
 constexpr x64::segment_descriptor craft_code_segment() {
 	x64::segment_descriptor retval;
 	retval.access = 0b10011011; // RX segment, accessible only to Ring 0 
@@ -84,47 +63,67 @@ constexpr x64::segment_descriptor craft_data_segment() {
 	return retval;
 };
 
-struct __attribute__((packed)) {
+
+__attribute__((interrupt)) void DE_handler(void*) {
+	puts("#DE");
+	halt();
+	return;
+}
+__attribute__((interrupt)) void PF_handler(void*) {
+	puts("#PF");
+	halt();
+	return;
+}
+__attribute__((interrupt)) void UD_handler(void*) {
+	puts("#UD");
+	halt();
+	return;
+}
+__attribute__((interrupt)) void NP_handler(void*) {
+	puts("#NP");
+	halt();
+	return;
+}
+__attribute__((interrupt)) void GP_handler(void*) {
+	puts("#GP");
+	halt();
+	return;
+}
+
+__attribute__((interrupt)) void DF_handler(void*) {
+	puts("#DF");
+	halt();
+	return;
+}
+__attribute__((interrupt)) void APIC_timer(void*) {
+	puts("Bopped !\n");
+	interrupt_manager imngr;
+	imngr.send_EOI();
+	return;
+}
+
+struct __attribute__((packed)) _gdt {
 	x64::segment_descriptor null_entry;
 	x64::segment_descriptor code_segment;
 	x64::segment_descriptor data_segment;
 	x64::system_segment_descriptor tss_desc;
-} gdt;
+};
 
-__attribute__((interrupt)) void DE_handler(void*) {
-	printf("#DE");
-	halt();
-}
-__attribute__((interrupt)) void PF_handler(void*) {
-	printf("#PF");
-	halt();
-}
-__attribute__((interrupt)) void NP_handler(void*) {
-	printf("#NP");
-	halt();
-}
-__attribute__((interrupt)) void GP_handler(void*) {
-	printf("#GP");
-	halt();
-}
+_gdt* pgdt;
+x64::TSS* ptss;
+interrupt_manager* pimngr;
+serial::portdriver* ser0_drv;
 
-__attribute__((interrupt)) void DF_handler(void*) {
-	printf("#DF");
-	halt();
-}
-__attribute__((interrupt)) void APIC_timer(void*) {
-	printf("Bopped !\n");
-	interrupt_manager imngr;
-	imngr.send_EOI();	
-}
 
-// Linker defined symbols
-extern "C" int kernel_begin;
-extern "C" int kernel_end;
+extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap)  {
+	x64::enable_sse();
+   
 
-x64::gdt_descriptor desc;
-extern "C" void kernel_main(x64::linaddr istack, memory_map_entry* mmap)  {
-    
+	static _gdt gdt; 
+	static x64::TSS tss;
+
+	pgdt = &gdt;
+
 	gdt.tss_desc.inner.access = 0x89; // 64 bit present available TSS
 	gdt.tss_desc.inner.flags = 0;
 	gdt.tss_desc.set_base((x64::linaddr) (&tss));
@@ -132,76 +131,32 @@ extern "C" void kernel_main(x64::linaddr istack, memory_map_entry* mmap)  {
 
 	gdt.code_segment = craft_code_segment();
 	gdt.data_segment = craft_data_segment();
-	desc = {sizeof(gdt) - 1, (x64::linaddr)(&gdt)}; 
+	x64::gdt_descriptor desc = {sizeof(gdt) - 1, (x64::linaddr)(&gdt)}; 
 
 	x64::lgdt((uint64_t)(&desc));
 	x64::reload_descriptors();
 	x64::reload_tss(0x18);
 
-
-
+	setup_heap(mmap);
 	mem::default_pages_init();
+
+
+	ser0_drv = new serial::portdriver(0x3f8); // Stable stdout
+	smallptr<filehandler> fh = ser0_drv->get_file(WRONLY);
+	stdout = fh.ptr;
+	fh.ptr = nullptr;	
+
 	Display().clear();
 
-	serial::portdriver com(0x3f8);
-	stdout = &com;
-
+	static interrupt_manager imngr;
+	pimngr = &imngr;
+	
 	tss.rsp[0] = istack; // For now, everything goes in istack
 	for(int i = 1; i < 8; ++i) {tss.ist[i] = istack;}
 
-
-	kvmem_alloc = mem::VirtualMemoryAllocator<18>();
-	kvmem_alloc.mark_used((x64::linaddr)(&kernel_begin) + 2*1024*1024*1024ull,
-			(x64::linaddr)(&kernel_end) - (x64::linaddr)(&kernel_begin));
-
-	printf("Kernel begin:end %p:%p",  (x64::linaddr)(&kernel_begin) + 2*1024*1024*1024ull,
-			(x64::linaddr)(&kernel_end) + 2*1024*1024*1024ull);
-
-	alloc = decltype(alloc)();
-	alloc.mark_used((x64::linaddr)(&kernel_begin) + 2*1024*1024*1024ull,
-			(x64::linaddr)(&kernel_end) + 2*1024*1024*1024ull);
-
-	printf("Memory map at %p\n", mmap);
-	int i = 0;
-	for(; mmap[i].length != 0; ++i) {
-		printf("%p:%p ", mmap[i].base, mmap[i].base + mmap[i].length - 1, mmap[i].type);
-		switch(mmap[i].type) {
-			case 1:
-				puts("available\n"); break;
-			case 3:
-				puts("acpi\n"); break;
-			case 4:
-				puts("hib. safe\n"); break;
-			case 5:
-				puts("bad ram\n"); break;
-			default:
-				puts("reserved\n");
-		}
-		
-		if(mmap[i].type != 1 && mmap[i].base < 0x100000000ull) {
-			auto end = (mmap[i].base + mmap[i].length - 1);
-			if(end >= 0x100000000ull) {end = 0xffffffff;}
-			alloc.mark_used(mmap[i].base, end);
-		}
-
-		if(i > 0 && mmap[i - 1].base + mmap[i - 1].length < mmap[i].base
-			&& mmap[i - 1].base + mmap[i - 1].length < 0x100000000ull) {
-			alloc.mark_used(mmap[i - 1].base + mmap[i - 1].length, min(mmap[i].base - 1, (uint64_t)0xffffffffull));
-		}
-	}
-	if(mmap[i-1].base + mmap[i-1].length < 0x100000000ull) {
-		printf("Filling up %p %p\n", mmap[i-1].base + mmap[i-1].length, 0xffffffffull);
-		alloc.mark_used(mmap[i-1].base + mmap[i-1].length, 0xffffffffull);
-	}
-
-	printf("Alloc status : %d %d %d %d\n", alloc.children[0].isfull(),
-					     alloc.children[1].isfull(),
-					     alloc.children[2].isfull(),
-					     alloc.children[3].isfull());
-
-	interrupt_manager imngr;
 	printf("Local APIC base: %p\n", imngr.apic_base());
 	imngr.register_gate(0, 1, (uint64_t)(&DE_handler));
+	imngr.register_gate(0x6, 1, (uint64_t)(&UD_handler));
 	imngr.register_gate(0xe, 1, (uint64_t)(&PF_handler));
 	imngr.register_gate(0xb, 1, (uint64_t)(&NP_handler));	
 	imngr.register_gate(0xd, 1, (uint64_t)(&GP_handler));
@@ -210,6 +165,11 @@ extern "C" void kernel_main(x64::linaddr istack, memory_map_entry* mmap)  {
 	
 	uint8_t vector = imngr.register_interrupt_block(1, req_isr);	
 	imngr.enable();
+
+
+}
+
+extern "C" void kernel_main() {	
 	
 	auto x = kmmap((void*)(-2*1024*1024*1024ull), 4096);
 	printf("Tried to mmap 1 page : %p\n", x);
@@ -231,6 +191,14 @@ extern "C" void kernel_main(x64::linaddr istack, memory_map_entry* mmap)  {
 	x = kmmap(NULL, 4*1024*1024);
 	printf("Allocating 4 MiB : %p\n", x);
 
+	for(x64::linaddr d = (x64::linaddr)x; d < (x64::linaddr)(x) + 4096*1024ull; d += 4096) {
+		auto phaddr = (x64::linaddr)(mem::resolve_to_phmem(d).resolved);
+		if(phaddr >= (uintptr_t)(&kernel_begin) + 2048*1024*1024ull &&
+		   phaddr <= (uintptr_t)(&kernel_end) + 2048*1024*1024ull) {
+			printf("Found phaddr %p at vaddr %p. Seems risky !\n", phaddr, d);
+		}
+	} 
+
 	memset(x, 0, 4*1024*1024ull);
 	puts("Still alive !");
 
@@ -238,11 +206,85 @@ extern "C" void kernel_main(x64::linaddr istack, memory_map_entry* mmap)  {
 	int* z = new int[2048];
 	*y = 0;
 	printf("%p %p\n", y,z);
-	while(true) {
-		if(int s = stdout->read(x, 4*1024*1024ull)) {
-			puts("Received a nice message !");
-		}
+
+	delete[] y;
+	delete[] z;
+
+	rootfs::rootfs filesystem;
+	devfs  dev_fsys;
+	dev_fsys.attach_serial(smallptr<serial::portdriver>(ser0_drv));
+	filesystem.mnts[0].fsys = &dev_fsys;
+	filesystem.mnts[0].mountpath = std::move(string("/dev"));
+
+	auto* it = filesystem.get_iterator();
+
+	printf("Current path %s\n", it->get_canonical_path().c_str());
+
+	if((*it << "dev") != DIR_ENTRY) {
+		printf("Filesystem failure !\n");
+	}	
+	printf("Current path %s\n", it->get_canonical_path().c_str());
+	if((*it << "ser0") == FILE_ENTRY) {
+		puts("/dev/ser0 is a file !\n");
+		auto* old = stdout;
+		smallptr<filehandler> fh = it->open_file("ser0", WRONLY);
+		stdout = fh.ptr;
+		puts("Written to /dev/ser0 :)\n");
+		stdout = old;
+	} else {
+		puts("/dev/ser0 is not a file !");
+	}
+	*it << ".";
+	printf("Canonical path of /dev/. : %s\n", it->get_canonical_path().c_str());
+	*it << "..";
+	printf("Canonical path of /dev/./.. : %s\n", it->get_canonical_path().c_str());
+	*it << "..";
+	printf("Canonical path of /dev/./../.. : %s\n", it->get_canonical_path().c_str());
+
+
+	try {
+		stdout->seek(0, SET);
+	} catch(einval&) {
+		puts("Cannot seek on stdout !\n");
+	}
+	try {
+		stdout->read(nullptr, 42);
+	} catch(eperm&) {
+		puts("Cannot read stdout !\n");
 	}
 
+	auto* old = stdout;
+	auto v = vga::text_driver();
+
+	smallptr<filehandler> fh = v.get_file(WRONLY);
+	stdout = fh.ptr;
+	printf("Testing printing on tty\nSome more text\n");
+	printf("Some more text\n");
+	for(int i = 0; i < 25; ++i) {
+		printf("%d\n", i);
+	}
+	puts("Last line !");
+	stdout = old;
+
+	try {
+		throw 'a';
+	} catch(char e) {
+		printf("Caught char exception e = %c\n", e);
+	}
+	printf("Still going !\n");
+
+	throw underflow_error("Out of cake\n");
+	puts("Got cake ?!\n");
 	halt();
+}
+
+
+extern "C" void landing_pad() {
+	try {
+		kernel_main();
+	} catch(std::exception& e) {
+		puts("---begin kernel panic !---\n");
+		puts(e.what());
+		puts("---End kernel panic---\n");
+	}
 }
