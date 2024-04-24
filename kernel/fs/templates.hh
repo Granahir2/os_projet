@@ -22,7 +22,7 @@ public:
 
 	off_t seek(off_t offset, seekref whence) override {
 		if constexpr (Seekable<T>) {
-			return do_seek(raw_f, offset, whence);
+			return do_seek(offset, whence);
 		} else {
 			throw einval();
 		}
