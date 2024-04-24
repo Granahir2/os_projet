@@ -1,6 +1,6 @@
 export CXXFLAGS= -ggdb -fno-pie -fpic -ffreestanding\
--std=c++23 -mno-mmx -mno-sse -mgeneral-regs-only -fno-stack-protector -I$(CURDIR) -Wall -Wextra\
--nodefaultlibs -fconcepts-diagnostics-depth=10
+-std=c++2a -mno-mmx -mno-sse -mgeneral-regs-only -fno-stack-protector -I$(CURDIR) -Wall -Wextra\
+-nodefaultlibs
 export CXX=x86_64-elf-g++
 export LD=x86_64-elf-ld
 export ASFLAGS=-g
