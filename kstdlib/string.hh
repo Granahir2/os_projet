@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include "cstring.hh"
-
+#include "memory.hh"
 /* Really bare bones templated string implementation.
 No reallocation */
 #include <utility>
