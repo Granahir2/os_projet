@@ -6,11 +6,6 @@
 namespace serial {
 
 portdriver::portdriver(uint16_t IOport) : port(IOport), refcnt(0) {
-	x64::outb(port+7, 0xaa);
-	if(x64::inb(port+7) != 0xaa) {
-		throw logic_error("No UART at location given"); 
-	}
-
 	x64::outb(port+1, 0); // no interrupts
 
 	x64::outb(port+3, 0x80);
@@ -28,6 +23,7 @@ portdriver::~portdriver() {
 }
 
 portdriver::operator bool() {
+	// TODO test for existence of port
 	return refcnt > 0;
 }
 
@@ -37,7 +33,6 @@ smallptr<file> portdriver::get_file([[maybe_unused]] int mode) {
 	return smallptr<file>(new serial::file(mode, this));
 }
 
-porthandler::porthandler(portdriver* p) : parent(p) {if(!p) {throw logic_error("Can't create orphan serial handler");} else {p->refcnt++;}};
 porthandler::~porthandler() {
 	if(parent && parent->refcnt) {
 		parent->refcnt--;

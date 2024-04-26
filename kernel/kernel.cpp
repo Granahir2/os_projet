@@ -213,7 +213,6 @@ extern "C" void kernel_main() {
 	rootfs::rootfs filesystem;
 	devfs  dev_fsys;
 	dev_fsys.attach_serial(smallptr<serial::portdriver>(ser0_drv));
-	dev_fsys.attach_tty(smallptr<vga::text_driver>(new vga::text_driver()));
 	filesystem.mnts[0].fsys = &dev_fsys;
 	filesystem.mnts[0].mountpath = std::move(string("/dev"));
 
@@ -235,17 +234,6 @@ extern "C" void kernel_main() {
 	} else {
 		puts("/dev/ser0 is not a file !");
 	}
-
-	if((*it << "tty0") == FILE_ENTRY) {
-		puts("/dev/tty0 is a file !\n");
-		auto* old = stdout;
-		smallptr<filehandler> fh = it->open_file("tty0", WRONLY);
-		stdout = fh.ptr;
-		puts("Written to /dev/tty0 :)\n");
-		stdout = old;
-	} else {
-		puts("/dev/tty0 is not a file !");
-	}
 	*it << ".";
 	printf("Canonical path of /dev/. : %s\n", it->get_canonical_path().c_str());
 	*it << "..";
@@ -265,6 +253,19 @@ extern "C" void kernel_main() {
 		puts("Cannot read stdout !\n");
 	}
 
+	auto* old = stdout;
+	auto v = vga::text_driver();
+
+	smallptr<filehandler> fh = v.get_file(WRONLY);
+	stdout = fh.ptr;
+	printf("Testing printing on tty\nSome more text\n");
+	printf("Some more text\n");
+	for(int i = 0; i < 25; ++i) {
+		printf("%d\n", i);
+	}
+	puts("Last line !");
+	stdout = old;
+
 	try {
 		throw 'a';
 	} catch(char e) {
@@ -272,10 +273,7 @@ extern "C" void kernel_main() {
 	}
 	printf("Still going !\n");
 
-	
-	pci::enumerate();
-
-	throw underflow_error("Out of cake.");
+	throw underflow_error("Out of cake\n");
 	puts("Got cake ?!\n");
 	halt();
 }
@@ -285,8 +283,8 @@ extern "C" void landing_pad() {
 	try {
 		kernel_main();
 	} catch(std::exception& e) {
-		puts("\n---begin kernel panic !---\n");
+		puts("---begin kernel panic !---\n");
 		puts(e.what());
-		puts("\n---End kernel panic---\n");
+		puts("---End kernel panic---\n");
 	}
 }

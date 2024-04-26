@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include "kstdlib/cstdio.hh"
 
 namespace pci {
 	struct header {

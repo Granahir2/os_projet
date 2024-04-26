@@ -117,7 +117,7 @@ int strcmp(char* a, char* b) {
 	return *d - *c;
 }
 
-extern "C" void halt [[noreturn]] ();
+extern "C" void halt();
 extern "C" const char bootstrapper_end; // linker defined symbol
 
 extern "C" uint32_t bootstrap(uint32_t magic, multiboot::info* info) {
