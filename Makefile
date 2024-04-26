@@ -45,7 +45,7 @@ test: os.iso
 debug: os.iso
 	qemu-system-x86_64 -cdrom os.iso -s -S  -monitor stdio -no-shutdown -no-reboot -d int
 clean:
-	$(RM) *.o *.bin *.iso
+	$(RM) *.o *.bin *.iso log.txt
 	$(RM) -r isodir
 	cd kernel && $(MAKE) clean
 	cd boot && $(MAKE) clean

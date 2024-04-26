@@ -11,7 +11,7 @@ class porthandler;
 
 class porthandler {
 public:
-	porthandler(portdriver* p) : parent(p) {};
+	porthandler(portdriver* p); 
 	~porthandler();
 	
 	size_t write(const void* buffer, size_t cnt);

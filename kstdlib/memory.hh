@@ -34,7 +34,15 @@ public:
 	smallptr(T* q = nullptr) : ptr(q) {}
 	smallptr(smallptr& other) = delete;
 	smallptr(smallptr&& other) {ptr = other.ptr; other.ptr = nullptr;}
+
+	template<class S>
+	smallptr(smallptr<S[]>&& other) requires (std::is_base_of<T, S>::value) {
+		ptr = other.ptr; other.ptr = nullptr;
+	} 
+
 	~smallptr() {delete[] ptr;}
+
+
 
 	void swap(smallptr&& other) {auto tmp = other.ptr; other.ptr = ptr; ptr = tmp;}
 

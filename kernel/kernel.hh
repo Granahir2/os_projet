@@ -7,8 +7,8 @@
 extern "C" int kernel_begin;
 extern "C" int kernel_end;
 
-extern "C" void abort();
-extern "C" void halt();
+extern "C" void abort [[noreturn]] ();
+extern "C" void halt [[noreturn]] ();
 extern "C" void assert(bool, const char*);
 extern "C" void* kmmap(void* hint, size_t sz);
 extern "C" void kmunmap(void* ptr, size_t sz);
