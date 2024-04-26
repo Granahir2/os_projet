@@ -83,3 +83,4 @@ basic_string<T> operator+(T lhs, const basic_string<T>& rhs) {
 };
 
 using string = basic_string<char>;
+using UCS2_string = basic_string<uint16_t>;
