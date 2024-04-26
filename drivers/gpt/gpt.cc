@@ -93,13 +93,13 @@ raw_partition::~raw_partition() {if(parent && parent->refcnt) {--parent->refcnt;
 off_t raw_partition::seek(off_t off, seekref whence) {
 	switch(whence) {
 		case SET:
-			if(off < (partinfo.end_lba + 1 - partinfo.start_lba)*partinfo.blk_size) {
+			if(off > 0 && (size_t)(off) < (partinfo.end_lba + 1 - partinfo.start_lba)*partinfo.blk_size) {
 				return offset = off;
 			} else {throw einval();}
 		case CUR:
 			return seek(off + offset, SET);
 		case END:
-			if(off <= 0 && -off <= (partinfo.end_lba + 1 - partinfo.start_lba)*partinfo.blk_size - 1) {
+			if(off <= 0 && (size_t)(-off) <= (partinfo.end_lba + 1 - partinfo.start_lba)*partinfo.blk_size - 1) {
 				return offset = (partinfo.end_lba + 1 - partinfo.start_lba)*partinfo.blk_size - 1 + off;
 			} else {throw einval();}
 		default:

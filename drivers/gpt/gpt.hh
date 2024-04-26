@@ -14,8 +14,8 @@ struct __attribute__((packed)) partition_entry {
 	guid_t type;
 	guid_t part_guid;
 
-	off_t start_lba;
-	off_t end_lba;
+	size_t start_lba;
+	size_t end_lba;
 	uint64_t attribs;
 	part_name pn;
 	uint16_t blk_size;
