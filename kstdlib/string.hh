@@ -92,3 +92,4 @@ basic_string<T> strcmp(const T* lhs, const T* rhs) {
 };
 
 using string = basic_string<char>;
+using UCS2_string = basic_string<uint16_t>;

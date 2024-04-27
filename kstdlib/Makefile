@@ -3,7 +3,7 @@ MODS=cstring.o cstdio.o new.o cstdlib.o
 
 .PHONY: clean
 stdlib.o: $(MODS)
-	g++ $(CXXFLAGS) $^ -r -o stdlib.o
+	$(CXX) $(CXXFLAGS) $^ -r -o stdlib.o
 
 cstring.o: cstring.cc cstring.hh
 cstdlib.o: cstdlib.hh cstdlib.cc
