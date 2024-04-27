@@ -7,6 +7,7 @@ namespace FAT {
 
 class FAT_dir_iterator;
 class FAT_file;
+class FAT_FileSystem;
 
 const int FAT12 = 0;
 const int FAT16 = 1;
@@ -20,8 +21,6 @@ const uint16_t ATTR_DIRECTORY = 0x10;
 const uint16_t ATTR_ARCHIVE = 0x20;
 const uint16_t ATTR_LONG_NAME = 0x0F;
 const uint16_t LAST_LONG_ENTRY = 0x40;
-
-using file = perm_fh<FAT::FAT_file>;
 
 struct FAT_dir_entry {
     char DIR_Name[11];
@@ -54,8 +53,51 @@ struct FAT_dir_entry_with_full_name {
     string full_name;
 };
 
-using dit = coh_dit<FAT::FAT_dir_iterator>;
 
+class FAT_file {
+public:
+    size_t read(void* buffer, size_t size);
+    size_t write(const void* buffer, size_t size);
+    void seek(off_t offset, seekref whence);
+    FAT_file(FAT_FileSystem* fat_fs, size_t file_size, size_t first_cluster_number) : 
+        read_write_head_position(0), 
+        read_write_head_position_within_cluster(0),
+        file_size(file_size),
+        first_cluster_number(first_cluster_number),
+        fat_fs(fat_fs) {}
+
+private:
+    size_t read_write_head_position;
+    size_t read_write_head_position_within_cluster;
+    size_t read_write_head_position_cluster_number;
+    size_t file_size;
+    size_t first_cluster_number;
+    FAT_FileSystem* fat_fs;
+
+    void set_position(size_t position);
+};
+
+using file = perm_fh<FAT::FAT_file>;
+
+class FAT_dir_iterator {
+public:
+    FAT_dir_iterator(FAT_FileSystem* fat_fs, int initial_stack_size = 32);
+    drit_status push(const char* directory_name, size_t cluster_number = -1);
+    void pop();
+    size_t depth();
+    string operator[](size_t index);
+    smallptr<filehandler> open_file(const char* file_name, int mode, size_t cluster_number = -1);
+
+private:
+    FAT_dir_entry_with_full_name stack[32];
+    int stack_pointer;
+    unsigned int stack_size;
+
+    FAT_FileSystem* const fat_fs;
+    unsigned short first_cluster_of_current_directory;
+};
+
+using dit = coh_dit<FAT::FAT_dir_iterator>;
 class FAT_FileSystem : public fs {
 friend FAT_dir_iterator;
 friend FAT_file;
@@ -91,49 +133,6 @@ private:
 
 using filesystem = FAT_FileSystem;
 
-class FAT_dir_iterator {
-public:
-    FAT_dir_iterator(FAT_FileSystem* fat_fs, int initial_stack_size = 32) : 
-        fat_fs(fat_fs), 
-        stack_pointer(0), 
-        stack_size(initial_stack_size), 
-        first_cluster_of_current_directory(fat_fs->BPB_RootClus) {}
-    void push(const char* directory_name, size_t cluster_number = -1);
-    void pop();
-    size_t depth();
-    string operator[](size_t index);
-    smallptr<filehandler> open_file(const char* file_name, int mode, size_t cluster_number = -1);
 
-private:
-    FAT_dir_entry_with_full_name stack[32];
-    int stack_pointer;
-    unsigned int stack_size;
-
-    FAT_FileSystem* const fat_fs;
-    unsigned short first_cluster_of_current_directory;
-};
-
-class FAT_file {
-public:
-    size_t read(void* buffer, size_t size);
-    size_t write(const void* buffer, size_t size);
-    void seek(off_t offset, seekref whence);
-    FAT_file(FAT_FileSystem* fat_fs, size_t file_size, size_t first_cluster_number) : 
-        read_write_head_position(0), 
-        read_write_head_position_within_cluster(0),
-        file_size(file_size),
-        first_cluster_number(first_cluster_number),
-        fat_fs(fat_fs) {}
-
-private:
-    size_t read_write_head_position;
-    size_t read_write_head_position_within_cluster;
-    size_t read_write_head_position_cluster_number;
-    size_t file_size;
-    size_t first_cluster_number;
-    FAT_FileSystem* fat_fs;
-
-    void set_position(size_t position);
-};
 
 }

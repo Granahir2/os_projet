@@ -1,4 +1,3 @@
-#pragma once
 #include "fat.hh"
 
 namespace FAT {

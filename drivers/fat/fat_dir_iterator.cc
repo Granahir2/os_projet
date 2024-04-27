@@ -1,10 +1,16 @@
-#pragma once
 #include "fat.hh"
 #include "kstdlib/string.hh"
 
 namespace FAT {
 
-void FAT_dir_iterator::push(const char* directory_name, size_t current_cluster) {
+
+FAT_dir_iterator::FAT_dir_iterator(FAT_FileSystem* fat_fs, int initial_stack_size) :
+        stack_pointer(0), 
+        stack_size(initial_stack_size), 
+        fat_fs(fat_fs), 
+        first_cluster_of_current_directory(fat_fs->BPB_RootClus) {}
+
+drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cluster) {
     if (stack_pointer == stack_size) 
         throw runtime_error("Stack overflow");
     
@@ -93,12 +99,13 @@ void FAT_dir_iterator::push(const char* directory_name, size_t current_cluster) 
                 {
                     // Check if it is a directory
                     if (!(DirEntry.DIR_Attr & ATTR_DIRECTORY))
-                        throw runtime_error("Found a file with matching name, but it is not a directory");
+                        return FILE_ENTRY;
+			//throw runtime_error("Found a file with matching name, but it is not a directory");
 
                     // Found the directory
                     this->first_cluster_of_current_directory = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
                     stack[stack_pointer++] = {DirEntry, basic_string(directory_name)};
-                    return;
+                    return DIR_ENTRY;
                 }
             }
         }
@@ -107,10 +114,12 @@ void FAT_dir_iterator::push(const char* directory_name, size_t current_cluster) 
         size_t next_cluster = fat_fs->find_fat_entry(current_cluster);
         // If there is none, we throw error that directory is not found
         if (next_cluster >= 0x0FFFFFF8)
-            throw runtime_error("Directory not found");
+            	return NP;
+		//throw runtime_error("Directory not found");
         // Else, we set the current cluster to the next cluster, and repeat
-        else 
-            push(directory_name, next_cluster);
+        else { 
+            return push(directory_name, next_cluster);
+	}
     }
     else throw runtime_error("FAT12 and FAT16 not supported");
 }
@@ -222,7 +231,7 @@ smallptr<filehandler> FAT_dir_iterator::open_file(const char* file_name, int mod
                     // Found the file
                     size_t file_size = DirEntry.DIR_FileSize;
                     size_t first_cluster = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    return new file(mode, fat_fs->fh, file_size, first_cluster);
+                    return new file(mode, fat_fs/*->fh*/, file_size, first_cluster);
                 }
             }
         }
@@ -234,7 +243,7 @@ smallptr<filehandler> FAT_dir_iterator::open_file(const char* file_name, int mod
             throw runtime_error("File not found");
         // Else, we set the current cluster to the next cluster, and repeat
         else 
-            open_file(file_name, mode, next_cluster);
+           return open_file(file_name, mode, next_cluster);
     }
     else throw runtime_error("FAT12 and FAT16 not supported");
 }

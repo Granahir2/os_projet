@@ -1,4 +1,3 @@
-#pragma once
 #include "kstdlib/stdexcept.hh"
 #include "kernel/fs/fs.hh"
 #include "fat.hh"
