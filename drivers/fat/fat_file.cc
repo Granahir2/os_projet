@@ -141,5 +141,6 @@ void FAT_file::seek(off_t offset, seekref whence) {
         default:
             throw logic_error("Invalid seek reference");
     }
+}
 
 }
