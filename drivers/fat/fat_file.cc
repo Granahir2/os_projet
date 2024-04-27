@@ -2,6 +2,13 @@
 
 namespace FAT {
 
+FAT_file::FAT_file(FAT_FileSystem* fat_fs, size_t file_size, size_t first_cluster_number) : 
+    read_write_head_position(0), 
+    read_write_head_position_within_cluster(0),
+    file_size(file_size),
+    first_cluster_number(first_cluster_number),
+    fat_fs(fat_fs) {}
+
 void FAT_file::set_position(size_t position) {
     if (position >= file_size)
         throw logic_error("Position is out of file size");
@@ -12,9 +19,9 @@ void FAT_file::set_position(size_t position) {
         current_cluster = fat_fs->find_fat_entry(current_cluster);
         if (current_cluster == 0)
             throw logic_error("File is too short, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFFFF)
+        else if (current_cluster == fat_fs->LAST_CLUSTER)
             throw logic_error("File is too long, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFF7)
+        else if (current_cluster == fat_fs->BAD_CLUSTER)
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
@@ -42,9 +49,9 @@ size_t FAT_file::read(void* buffer, size_t size) {
         size_t current_cluster = fat_fs->find_fat_entry(read_write_head_position_cluster_number);
         if (current_cluster == 0)
             throw logic_error("File is too short, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFFFF)
+        else if (current_cluster == fat_fs->LAST_CLUSTER)
             throw logic_error("File is too long, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFF7)
+        else if (current_cluster == fat_fs->BAD_CLUSTER)
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
@@ -59,9 +66,9 @@ size_t FAT_file::read(void* buffer, size_t size) {
         size_t current_cluster = fat_fs->find_fat_entry(read_write_head_position_cluster_number);
         if (current_cluster == 0)
             throw logic_error("File is too short, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFFFF)
+        else if (current_cluster == fat_fs->LAST_CLUSTER)
             throw logic_error("File is too long, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFF7)
+        else if (current_cluster == fat_fs->BAD_CLUSTER)
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
@@ -92,11 +99,11 @@ size_t FAT_file::write(const void* buffer, size_t size) {
         
         if (current_cluster == 0)
             throw logic_error("File is too short, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFF7)
+        else if (current_cluster == fat_fs->BAD_CLUSTER)
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
-        else if (current_cluster == 0xFFFFFFFF) {
+        else if (current_cluster == fat_fs->LAST_CLUSTER) {
             current_cluster = fat_fs->find_free_cluster(read_write_head_position_cluster_number);
             if (current_cluster == 0)
             {
@@ -118,11 +125,11 @@ size_t FAT_file::write(const void* buffer, size_t size) {
         size_t current_cluster = fat_fs->find_fat_entry(read_write_head_position_cluster_number);
         if (current_cluster == 0)
             throw logic_error("File is too short, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFF7)
+        else if (current_cluster == fat_fs->LAST_CLUSTER)
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
-        else if (current_cluster == 0xFFFFFFFF) {
+        else if (current_cluster == fat_fs->LAST_CLUSTER) {
             current_cluster = fat_fs->find_free_cluster(read_write_head_position_cluster_number);
             if (current_cluster == 0)
             {
@@ -131,7 +138,7 @@ size_t FAT_file::write(const void* buffer, size_t size) {
                 return write_size;
             }
         }
-        
+
         fat_fs->fh->write(buffer, size);
         read_write_head_position += size;
         read_write_head_position_within_cluster = size;

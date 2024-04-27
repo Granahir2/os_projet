@@ -59,12 +59,7 @@ public:
     size_t read(void* buffer, size_t size);
     size_t write(const void* buffer, size_t size);
     void seek(off_t offset, seekref whence);
-    FAT_file(FAT_FileSystem* fat_fs, size_t file_size, size_t first_cluster_number) : 
-        read_write_head_position(0), 
-        read_write_head_position_within_cluster(0),
-        file_size(file_size),
-        first_cluster_number(first_cluster_number),
-        fat_fs(fat_fs) {}
+    FAT_file(FAT_FileSystem* fat_fs, size_t file_size, size_t first_cluster_number);
 
 private:
     size_t read_write_head_position;
@@ -92,6 +87,7 @@ private:
     FAT_dir_entry_with_full_name stack[32];
     unsigned int stack_pointer;
     unsigned int stack_size;
+    bool is_root;
 
     FAT_FileSystem* const fat_fs;
     unsigned short first_cluster_of_current_directory;
@@ -127,6 +123,10 @@ private:
     size_t number_of_entries_per_cluster;
     size_t number_of_clusters;
     size_t number_of_FAT_entries;
+    size_t root_directory_begin_address_for_FAT12_and_FAT16;
+
+    uint32_t BAD_CLUSTER;
+    uint32_t LAST_CLUSTER;
 
     size_t cluster_number_to_address(size_t cluster_number);
     size_t find_fat_entry(size_t cluster_number, unsigned int FatNumber = 1);

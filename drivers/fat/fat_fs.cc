@@ -48,13 +48,22 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
         this->number_of_clusters = (BPB_TotSec16 - (BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz16))) / BPB_SecPerClus;
         this->FATSz = BPB_FATSz16;
         if (this->BPB_RootEntCnt < 4085)
-            this->FATType = FAT12;
+            this->FATType = FAT12, 
+            this->BAD_CLUSTER = 0x0FF7,
+            this->LAST_CLUSTER = 0x0FFF;
         else if (this->BPB_RootEntCnt < 65525)
-            this->FATType = FAT16;
+            this->FATType = FAT16, 
+            this->BAD_CLUSTER = 0xFFF7,
+            this->LAST_CLUSTER = 0xFFFF;
         else 
             throw logic_error("Corrupted FAT filesystem: BPB_RootEntCnt is too large for FAT12/FAT16\n");
         
-        throw logic_error("FAT12/FAT16 not supported\n");
+        this->root_directory_begin_address_for_FAT12_and_FAT16 = 
+            BPB_RsvdSecCnt * BPB_BytsPerSec + // FAT begin
+            (this->BPB_NumFATs * BPB_FATSz16 * BPB_BytsPerSec) +// FAT size
+            1; // and the next byte
+        this->BPB_RootClus = 0;
+        //throw logic_error("FAT12/FAT16 not supported\n");
     }
     else
     {
@@ -97,6 +106,8 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
         this->cluster_size = this->BPB_SecPerClus * this->BPB_BytsPerSec;
         this->number_of_entries_per_cluster = this->cluster_size / 32;
         this->number_of_clusters = (BPB_TotSec32 - (BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz32))) / BPB_SecPerClus;
+        this->BAD_CLUSTER = 0x0FFFFFF7;
+        this->LAST_CLUSTER = 0x0FFFFFFF;
     }
 
     this->BPB_BytsPerSec = BPB_BytsPerSec;
@@ -115,7 +126,6 @@ size_t FAT_FileSystem::cluster_number_to_fat_entry_index(size_t cluster_number, 
 {
     // Section 4.1: Determination of FAT entry for a cluster number
     size_t FAT_Offset;
-    size_t FATEntry;
     size_t ThisFATSecNum;
     int ThisFATEntOffset;
     if (FATType == FAT12) FAT_Offset = cluster_number + (cluster_number / 2);
@@ -136,7 +146,11 @@ size_t FAT_FileSystem::find_fat_entry(size_t cluster_number, unsigned int FatNum
     fh->seek(cluster_number_to_fat_entry_index(cluster_number, FatNumber), SET);
     if (FATType == FAT12)
     {
-        throw logic_error("TODO: Support FAT12 FAT entry lookup\n");
+        fh->read(&FATEntry, 2);
+        if (cluster_number & 1)
+            FATEntry >>= 4;
+        else
+            FATEntry &= 0x0FFF;
     }
     else if (FATType == FAT16) 
     {
@@ -171,7 +185,7 @@ size_t FAT_FileSystem::find_free_cluster(size_t last_cluster_number) {
         for (int i = 0; i < BPB_NumFATs; i++)
         {
             write_fat_entry(last_cluster_number, next_cluster_number, i);
-            write_fat_entry(next_cluster_number, 0xFFFFFFFF, i);
+            write_fat_entry(next_cluster_number, LAST_CLUSTER, i);
         }
     }
     return next_cluster_number;
