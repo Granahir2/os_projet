@@ -75,50 +75,68 @@ size_t FAT_file::read(void* buffer, size_t size) {
 }
 
 size_t FAT_file::write(const void* buffer, size_t size) {
-    size_t write_size = size;
-    if (read_write_head_position + size > file_size)
-        size = file_size - read_write_head_position;
+    size_t write_size = 0;
     set_position(read_write_head_position);
     
-    // Read the remaining of the current cluster
+    // Write the remaining of the current cluster
     size_t remaining_in_cluster = fat_fs->cluster_size - read_write_head_position_within_cluster;
     fat_fs->fh->write(buffer, remaining_in_cluster);
     read_write_head_position += remaining_in_cluster;
     read_write_head_position_within_cluster = 0;
     size -= remaining_in_cluster;
+    write_size += remaining_in_cluster;
 
-    // Read the remaining clusters
+    // Write the remaining clusters
     while(size >= fat_fs->cluster_size) {
         size_t current_cluster = fat_fs->find_fat_entry(read_write_head_position_cluster_number);
+        
         if (current_cluster == 0)
             throw logic_error("File is too short, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFFFF)
-            throw logic_error("File is too long, this cluster is not allocated");
         else if (current_cluster == 0xFFFFFF7)
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
+        else if (current_cluster == 0xFFFFFFFF) {
+            current_cluster = fat_fs->find_free_cluster(read_write_head_position_cluster_number);
+            if (current_cluster == 0)
+            {
+                // No free cluster found, no more space to write
+                // End writing prematurely
+                return write_size;
+            }
+        }
+        
         fat_fs->fh->write(buffer, fat_fs->cluster_size);
         read_write_head_position += fat_fs->cluster_size;
         read_write_head_position_cluster_number = current_cluster;
         size -= fat_fs->cluster_size;
+        write_size += fat_fs->cluster_size;
     }
 
-    // Read the remaining of the last cluster
+    // Write the remaining of the last cluster
     if (size > 0) {
         size_t current_cluster = fat_fs->find_fat_entry(read_write_head_position_cluster_number);
         if (current_cluster == 0)
             throw logic_error("File is too short, this cluster is not allocated");
-        else if (current_cluster == 0xFFFFFFFF)
-            throw logic_error("File is too long, this cluster is not allocated");
         else if (current_cluster == 0xFFFFFF7)
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
+        else if (current_cluster == 0xFFFFFFFF) {
+            current_cluster = fat_fs->find_free_cluster(read_write_head_position_cluster_number);
+            if (current_cluster == 0)
+            {
+                // No free cluster found, no more space to write
+                // End writing prematurely
+                return write_size;
+            }
+        }
+        
         fat_fs->fh->write(buffer, size);
         read_write_head_position += size;
         read_write_head_position_within_cluster = size;
         read_write_head_position_cluster_number = current_cluster;
+        write_size += size;
     }
 
     return write_size;

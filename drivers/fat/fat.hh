@@ -126,9 +126,13 @@ private:
     size_t cluster_size;
     size_t number_of_entries_per_cluster;
     size_t number_of_clusters;
+    size_t number_of_FAT_entries;
 
     size_t cluster_number_to_address(size_t cluster_number);
     size_t find_fat_entry(size_t cluster_number, unsigned int FatNumber = 1);
+    size_t cluster_number_to_fat_entry_index(size_t cluster_number, unsigned int FatNumber = 1);
+    size_t find_free_cluster(size_t last_cluster_number);
+    void write_fat_entry(size_t cluster_number, size_t value, unsigned int FatNumber = 1);
 };  
 
 using filesystem = FAT_FileSystem;

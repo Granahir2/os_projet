@@ -103,6 +103,7 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
     this->BPB_SecPerClus = BPB_SecPerClus;
     this->BPB_NumFATs = BPB_NumFATs;
     this->BPB_RootEntCnt = BPB_RootEntCnt;
+    this->number_of_FAT_entries = FATSz * BPB_BytsPerSec / 4;
 }
 
 size_t FAT_FileSystem::cluster_number_to_address(size_t cluster_number)
@@ -110,60 +111,106 @@ size_t FAT_FileSystem::cluster_number_to_address(size_t cluster_number)
     return ((cluster_number - 2) * BPB_SecPerClus) + (BPB_RsvdSecCnt + (BPB_NumFATs * FATSz));
 }
 
-size_t FAT_FileSystem::find_fat_entry(size_t cluster_number, unsigned int FatNumber)
-{   
+size_t FAT_FileSystem::cluster_number_to_fat_entry_index(size_t cluster_number, unsigned int FatNumber)
+{
     // Section 4.1: Determination of FAT entry for a cluster number
     size_t FAT_Offset;
     size_t FATEntry;
     size_t ThisFATSecNum;
     int ThisFATEntOffset;
+    if (FATType == FAT12) FAT_Offset = cluster_number + (cluster_number / 2);
+    else if (FATType == FAT16) FAT_Offset = cluster_number * 2;
+    else if (FATType == FAT32) FAT_Offset = cluster_number * 4;
+    else throw logic_error("Invalid FAT type\n");
+
+    ThisFATSecNum = BPB_RsvdSecCnt + (FAT_Offset / BPB_BytsPerSec) + (FatNumber - 1) * FATSz;
+    ThisFATEntOffset = FAT_Offset % BPB_BytsPerSec;
+    return ThisFATSecNum * BPB_BytsPerSec + ThisFATEntOffset;
+}
+
+size_t FAT_FileSystem::find_fat_entry(size_t cluster_number, unsigned int FatNumber)
+{   
+    // Section 4.1: Determination of FAT entry for a cluster number
+    size_t FATEntry;
+    
+    fh->seek(cluster_number_to_fat_entry_index(cluster_number, FatNumber), SET);
     if (FATType == FAT12)
     {
-        FAT_Offset = cluster_number + (cluster_number / 2);
-        ThisFATSecNum = BPB_RsvdSecCnt + (FAT_Offset / BPB_BytsPerSec) + (FatNumber - 1) * FATSz;
-        ThisFATEntOffset = FAT_Offset % BPB_BytsPerSec;
-        
-        if (ThisFATEntOffset == (BPB_BytsPerSec - 1))
-        {
-            // FAT entry spans two sectors
-            ThisFATSecNum = BPB_RsvdSecCnt + (FAT_Offset / BPB_BytsPerSec);
-            ThisFATEntOffset = FAT_Offset % BPB_BytsPerSec;
-            fh->seek(ThisFATEntOffset, SET);
-            fh->read(&FATEntry, 1);
-            fh->seek(1, CUR);
-            unsigned char FATEntry2;
-            fh->read(&FATEntry2, 1);
-            FATEntry = (FATEntry2 << 4) | (FATEntry >> 4);
-        }
-
-        fh->seek(ThisFATSecNum * BPB_BytsPerSec + ThisFATEntOffset, SET);
-        fh->read(&FATEntry, 2);
-        if (cluster_number & 1)
-            FATEntry >>= 4;
-        else 
-            FATEntry &= 0x0FFF;
-        return FATEntry;
+        throw logic_error("TODO: Support FAT12 FAT entry lookup\n");
     }
     else if (FATType == FAT16) 
     {
-        FAT_Offset = cluster_number * 2;
-        ThisFATSecNum = BPB_RsvdSecCnt + (FAT_Offset / BPB_BytsPerSec) + (FatNumber - 1) * FATSz;
-        ThisFATEntOffset = FAT_Offset % BPB_BytsPerSec;
-
-        fh->seek(ThisFATSecNum * BPB_BytsPerSec + ThisFATEntOffset, SET);
         fh->read(&FATEntry, 2);
         return FATEntry;
     }
     else if (FATType == FAT32)
     {
-        FAT_Offset = cluster_number * 4;
-        ThisFATSecNum = BPB_RsvdSecCnt + (FAT_Offset / BPB_BytsPerSec) + (FatNumber - 1) * FATSz;
-        ThisFATEntOffset = FAT_Offset % BPB_BytsPerSec;
-
-        fh->seek(ThisFATSecNum * BPB_BytsPerSec + ThisFATEntOffset, SET);
         fh->read(&FATEntry, 4);
         FATEntry &= 0x0FFFFFFF;
-        return FATEntry;
+    }
+    else throw logic_error("Invalid FAT type\n");
+    return FATEntry;
+}
+
+size_t FAT_FileSystem::find_free_cluster(size_t last_cluster_number) {
+    // Start going through the FAT table
+    fh->seek(BPB_RsvdSecCnt * BPB_BytsPerSec, SET);
+    size_t FATEntry;
+    size_t next_cluster_number = 0;
+    for (unsigned int i = 0; i < number_of_FAT_entries; i++)
+    {
+        fh->read(&FATEntry, 4);
+        if (FATEntry == 0)
+        {
+            next_cluster_number = i + 2;
+            break;
+        }
+    }
+    if (next_cluster_number != 0)
+    {
+        for (int i = 0; i < BPB_NumFATs; i++)
+        {
+            write_fat_entry(last_cluster_number, next_cluster_number, i);
+            write_fat_entry(next_cluster_number, 0xFFFFFFFF, i);
+        }
+    }
+    return next_cluster_number;
+}
+
+void FAT_FileSystem::write_fat_entry(size_t cluster_number, size_t FATEntry, unsigned int FatNumber)
+{
+    size_t old_FAT_Entry;
+    fh->seek(cluster_number_to_fat_entry_index(cluster_number, FatNumber), SET);
+    if (FATType == FAT12)
+    {
+        if (cluster_number & 1)
+        {
+            FATEntry <<= 4;
+            fh->read(&old_FAT_Entry, 2);
+            old_FAT_Entry &= 0x000F;
+        }
+        else
+        {
+            FATEntry &= 0x0FFF;
+            fh->read(&old_FAT_Entry, 2);
+            old_FAT_Entry &= 0xF000;
+        }
+        FATEntry |= old_FAT_Entry;
+        fh->seek(-2, CUR);
+        fh->write(&FATEntry, 2);
+    }
+    else if (FATType == FAT16) 
+    {
+        fh->write(&FATEntry, 2);
+    }
+    else if (FATType == FAT32)
+    {
+        FATEntry &= 0x0FFFFFFF;
+        fh->read(&old_FAT_Entry, 4);
+        fh->seek(-4, CUR);
+        old_FAT_Entry &= 0xF0000000;
+        FATEntry |= old_FAT_Entry;
+        fh->write(&FATEntry, 4);
     }
     else throw logic_error("Invalid FAT type\n");
 }
