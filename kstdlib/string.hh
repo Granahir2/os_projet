@@ -82,4 +82,13 @@ basic_string<T> operator+(T lhs, const basic_string<T>& rhs) {
 	return basic_string(rhs.length() + 1, std::move(nptr));
 };
 
+template<typename T>
+basic_string<T> strcmp(const T* lhs, const T* rhs) {
+    while(*lhs && *rhs && *lhs == *rhs) {
+        ++lhs;
+        ++rhs;
+    }
+    return *(const unsigned char*)lhs - *(const unsigned char*)rhs;
+};
+
 using string = basic_string<char>;
