@@ -116,7 +116,7 @@ size_t FAT_FileSystem::find_fat_entry(size_t cluster_number, unsigned int FatNum
     size_t FAT_Offset;
     size_t FATEntry;
     size_t ThisFATSecNum;
-    size_t ThisFATEntOffset;
+    int ThisFATEntOffset;
     if (FATType == FAT12)
     {
         FAT_Offset = cluster_number + (cluster_number / 2);

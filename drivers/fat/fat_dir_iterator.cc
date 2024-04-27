@@ -14,7 +14,7 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
     if (stack_pointer == stack_size) 
         throw runtime_error("Stack overflow");
     
-    if (current_cluster == -1)
+    if (current_cluster == SIZE_MAX)
         current_cluster = this->first_cluster_of_current_directory;
 
     // Traverse through FAT to find the directory
@@ -26,9 +26,9 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
 
     // Buffer to contain long name
     char found_directory_Name [256];
-    size_t cnt = 0;
-    size_t number_of_LFN_entries = -1;
-    size_t current_checksum = -1;
+    int cnt = 0;
+    int number_of_LFN_entries = -1;
+    int current_checksum = -1;
 
     fat_fs->fh->seek(start_address, SET);
     if (fat_fs->FATType == FAT32)
@@ -100,7 +100,7 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
                     // Check if it is a directory
                     if (!(DirEntry.DIR_Attr & ATTR_DIRECTORY))
                         return FILE_ENTRY;
-			//throw runtime_error("Found a file with matching name, but it is not a directory");
+                        //throw runtime_error("Found a file with matching name, but it is not a directory");
 
                     // Found the directory
                     this->first_cluster_of_current_directory = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
@@ -114,12 +114,12 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
         size_t next_cluster = fat_fs->find_fat_entry(current_cluster);
         // If there is none, we throw error that directory is not found
         if (next_cluster >= 0x0FFFFFF8)
-            	return NP;
-		//throw runtime_error("Directory not found");
+                return NP;
+        //throw runtime_error("Directory not found");
         // Else, we set the current cluster to the next cluster, and repeat
         else { 
             return push(directory_name, next_cluster);
-	}
+        }
     }
     else throw runtime_error("FAT12 and FAT16 not supported");
 }
@@ -135,7 +135,7 @@ size_t FAT_dir_iterator::depth() {
 }
 
 string FAT_dir_iterator::operator[](size_t index) {
-    if (index >= stack_pointer || index < 0)
+    if (index >= stack_pointer)
         throw runtime_error("Index out of bounds");
     return stack[index].full_name;
 }
@@ -143,7 +143,7 @@ string FAT_dir_iterator::operator[](size_t index) {
 smallptr<filehandler> FAT_dir_iterator::open_file(const char* file_name, int mode, size_t current_cluster) {
     // Traverse through FAT to find the directory
     // and push it to the stack
-    if (current_cluster == -1)
+    if (current_cluster == SIZE_MAX)
         current_cluster = this->first_cluster_of_current_directory;
 
     size_t start_address = fat_fs->cluster_number_to_address(current_cluster);
@@ -153,9 +153,9 @@ smallptr<filehandler> FAT_dir_iterator::open_file(const char* file_name, int mod
 
     // Buffer to contain long name
     char found_directory_Name [256];
-    size_t cnt = 0;
-    size_t number_of_LFN_entries = -1;
-    size_t current_checksum = -1;
+    int cnt = 0;
+    int number_of_LFN_entries = -1;
+    int current_checksum = -1;
 
     fat_fs->fh->seek(start_address, SET);
     if (fat_fs->FATType == FAT32)
