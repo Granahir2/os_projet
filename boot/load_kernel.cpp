@@ -35,6 +35,8 @@ namespace elf64 { // Move to a specific file ? We're going to need this someday 
 	};
 };
 
+extern "C" uint64_t kernel_zero;
+
 lk_result load_kernel(uint32_t safezone_start, void* elf_start) {
 	elf64::file_header* fh = reinterpret_cast<decltype(fh)>(elf_start);
 
@@ -63,6 +65,8 @@ lk_result load_kernel(uint32_t safezone_start, void* elf_start) {
 
 		uint64_t start_addr = toparse->vaddr;
 		if(start_addr >> 63) {start_addr += 2*1024*1024*1024ull;}
+
+		start_addr += kernel_zero; /* Ensure we only load in the safe zone */
 		
 		if(start_addr < (uint64_t)safezone_start ||
 		   start_addr + toparse->memsz >= (uint64_t)(0x100000000ull)) {

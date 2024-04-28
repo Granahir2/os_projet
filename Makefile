@@ -12,10 +12,10 @@ CRT0=stdinit/crt0.o
 CRTBEGIN=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtbegin.o)
 CRTEND=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtend.o)
 
-os.iso: boot/bootstrap.bin klinker.ld kernel/kernelfull.o kstdlib/stdlib.o drivers/drivers.o grub.cfg $(CRT0) $(CRTI) $(CRTN)
+os.iso: boot/bootstrap.bin klinker.ld kernel/kernelfull.o kstdlib/stdlib.o drivers/drivers.o fattest.o grub.cfg $(CRT0) $(CRTI) $(CRTN)
 	$(CXX) -nostdlib $(CXXFLAGS) -mcmodel=large -static -o kernel.bin -T klinker.ld \
 		$(CRT0) $(CRTI) $(CRTBEGIN) \
-		kernel/kernelfull.o kstdlib/stdlib.o drivers/drivers.o -lstdc++ -lgcc \
+		kernel/kernelfull.o kstdlib/stdlib.o drivers/drivers.o fattest.o -lstdc++ -lgcc \
 		$(CRTEND) $(CRTN)
 	mkdir -p isodir/boot/grub
 	cp grub.cfg isodir/boot/grub
@@ -25,6 +25,11 @@ os.iso: boot/bootstrap.bin klinker.ld kernel/kernelfull.o kstdlib/stdlib.o drive
 
 stdinit/crt*.o: FORCE
 	cd stdinit && $(MAKE) $(notdir $@)
+
+fattest.raw: makefat
+
+fattest.o: fattest.raw
+	x86_64-elf-objcopy -I binary -B i386:x86-64 -O elf64-x86-64 $^ $@
 
 misc: FORCE
 	cd misc && $(MAKE)
@@ -39,7 +44,7 @@ kstdlib/stdlib.o: FORCE
 
 FORCE:
 
-.PHONY: clean test debug
+.PHONY: clean test debug makefat
 test: os.iso
 	qemu-system-x86_64 -cdrom os.iso -m 4G -serial stdio | tee log.txt
 debug: os.iso
@@ -47,7 +52,16 @@ debug: os.iso
 clean:
 	$(RM) *.o *.bin *.iso log.txt
 	$(RM) -r isodir
+	$(RM) fattest.raw
 	cd kernel && $(MAKE) clean
 	cd boot && $(MAKE) clean
 	cd kstdlib && $(MAKE) clean
 	cd drivers && $(MAKE) clean
+
+makefat:
+	- mkfs.fat -C fattest.raw 32768
+	- mkdir -p fatbuild
+	sudo mount -o loop fattest.raw fatbuild
+	sudo cp -r fatimage fatbuild
+	sudo umount fatbuild
+	rm -r fatbuild

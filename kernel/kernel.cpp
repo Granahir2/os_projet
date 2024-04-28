@@ -20,6 +20,10 @@
 #include "drivers/vga_text/vga_text.hh"
 #include "kstdlib/cstdlib.hh"
 #include "kstdlib/stdexcept.hh"
+
+#include "fs/memf.hh"
+#include "drivers/fat/fat.hh"
+
 extern "C" void abort() {
 	puts("Kernel panic !\n");
 	halt();
@@ -115,7 +119,7 @@ interrupt_manager* pimngr;
 serial::portdriver* ser0_drv;
 
 
-extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap)  {
+extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, uint64_t kernel_zero)  {
 	x64::enable_sse();
    
 
@@ -137,8 +141,9 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap)  
 	x64::reload_descriptors();
 	x64::reload_tss(0x18);
 
-	setup_heap(mmap);
-	mem::default_pages_init();
+	//uint64_t kernel_zero = 0;
+	setup_heap(mmap, kernel_zero);
+	mem::default_pages_init(kernel_zero);
 
 
 	ser0_drv = new serial::portdriver(0x3f8); // Stable stdout
@@ -166,8 +171,13 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap)  
 	uint8_t vector = imngr.register_interrupt_block(1, req_isr);	
 	imngr.enable();
 
+	printf("kernel_zero was %p\n", kernel_zero);
 
 }
+
+extern void* _binary_fattest_raw_start;
+extern void* _binary_fattest_raw_end;
+extern size_t _binary_fattest_raw_size;
 
 extern "C" void kernel_main() {	
 	
@@ -191,13 +201,15 @@ extern "C" void kernel_main() {
 	x = kmmap(NULL, 4*1024*1024);
 	printf("Allocating 4 MiB : %p\n", x);
 
+	/*
 	for(x64::linaddr d = (x64::linaddr)x; d < (x64::linaddr)(x) + 4096*1024ull; d += 4096) {
 		auto phaddr = (x64::linaddr)(mem::resolve_to_phmem(d).resolved);
 		if(phaddr >= (uintptr_t)(&kernel_begin) + 2048*1024*1024ull &&
 		   phaddr <= (uintptr_t)(&kernel_end) + 2048*1024*1024ull) {
 			printf("Found phaddr %p at vaddr %p. Seems risky !\n", phaddr, d);
 		}
-	} 
+	}
+	*/
 
 	memset(x, 0, 4*1024*1024ull);
 	puts("Still alive !");
@@ -271,9 +283,20 @@ extern "C" void kernel_main() {
 		printf("Caught char exception e = %c\n", e);
 	}
 	printf("Still going !\n");
+	printf("Binary object size : %p\n", &_binary_fattest_raw_size);	
 
 	
-	pci::enumerate();
+	memfile fat_memfile(RW, (size_t)(&_binary_fattest_raw_size));
+	fat_memfile.write(&_binary_fattest_raw_start, (size_t)(&_binary_fattest_raw_size));
+	fat_memfile.seek(0, SET);
+	
+	FAT::filesystem fat_testfs(&fat_memfile);
+	/*
+		TODO : Add pertinent test cases here.
+	*/
+
+
+	pci::enumerate(); 
 
 	throw underflow_error("Out of cake.");
 	puts("Got cake ?!\n");

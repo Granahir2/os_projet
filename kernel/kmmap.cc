@@ -12,7 +12,7 @@ unsigned long long min(unsigned long long a, unsigned long long b) {
 	if( a < b) {return a;} else {return b;}
 }
 
-extern "C" void* kmmap(void* hint, size_t sz) {
+extern "C" void* kmmap(void* hint, size_t sz) { // The offsets are relative to kernel_zero so that's okay
 	if(sz == 0) return NULL;
 	auto r = pkvmem_alloc->mmap((x64::linaddr)(hint) + 2*1024*1024*1024ull, sz);
 	if(r == mem::alloc_null) {throw std::bad_alloc();}
@@ -26,7 +26,7 @@ extern "C" void kmunmap(void* ptr, size_t sz) {
 	pphmem_man->unback_vmem((x64::linaddr)ptr, sz, 0);
 }
 
-void setup_heap(memory_map_entry* mmap) {
+void setup_heap(memory_map_entry* mmap, uint64_t kernel_zero) {
 
 	static mem::ph_tree_allocator<10> alloc;
 	static mem::VirtualMemoryAllocator<18> kvmem_alloc;
@@ -45,9 +45,10 @@ void setup_heap(memory_map_entry* mmap) {
 			(x64::linaddr)(&kernel_end) + 2*1024*1024*1024ull);
 	*/
 
+	// Mark the physical memory of the kernel as used
 	alloc = decltype(alloc)();
-	alloc.mark_used((x64::linaddr)(&kernel_begin) + 2*1024*1024*1024ull,
-			(x64::linaddr)(&kernel_end) + 2*1024*1024*1024ull);
+	alloc.mark_used((x64::linaddr)(&kernel_begin) + 2*1024*1024*1024ull + kernel_zero,
+			(x64::linaddr)(&kernel_end) + 2*1024*1024*1024ull + kernel_zero);
 
 	//printf("Memory map at %p\n", mmap);
 	int i = 0;

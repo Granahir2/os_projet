@@ -24,6 +24,7 @@ extern "C" {
 memory_map_entry memory_map_buffer[256];
 }
 
+extern "C" uint64_t kernel_zero;
 /***************** GDT ******************/
 constexpr x86::segment_descriptor craft_early_code_segment() {
 	x86::segment_descriptor retval;
@@ -75,7 +76,7 @@ constexpr struct {
 	page_directory dir3 = make_linear_large_page_directory(0xC0000000);
 } page_directory_table;
 
-constexpr struct {
+struct {
 	page_directory dir0 = make_linear_large_page_directory(0);
 	page_directory dir1 = make_linear_large_page_directory(0x40000000);
 } page_directory_table_highhalf;
@@ -97,12 +98,15 @@ struct __attribute__((aligned(4096))) {
 } level4_page_table;
 }
 
-void ready_paging() {
+void ready_paging(uint64_t kernel_zero) {
 	level3_page_table.entry[0] = (uint64_t)(&page_directory_table.dir0) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
 	level3_page_table.entry[1] = (uint64_t)(&page_directory_table.dir1) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
 	level3_page_table.entry[2] = (uint64_t)(&page_directory_table.dir2) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
 	level3_page_table.entry[3] = (uint64_t)(&page_directory_table.dir3) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
-	
+
+	page_directory_table_highhalf.dir0 = make_linear_large_page_directory(kernel_zero);
+	page_directory_table_highhalf.dir1 = make_linear_large_page_directory(kernel_zero + 0x40000000);
+
 	level3_page_table_highhalf.entry[510] = (uint64_t)(&page_directory_table_highhalf.dir0) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;  
 	level3_page_table_highhalf.entry[511] = (uint64_t)(&page_directory_table_highhalf.dir1) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
 
@@ -182,6 +186,9 @@ extern "C" uint32_t bootstrap(uint32_t magic, multiboot::info* info) {
 	int32_t safe_offset = (int32_t)(kernel_decl->end) > (int32_t)(&bootstrapper_end) ?
 				(int32_t)(kernel_decl->end) : (int32_t)(&bootstrapper_end);
 	terminal.print("Safezone start : %x\n", safe_offset);
+	// kernel_zero is on a 2 MiB boundary
+	kernel_zero = 2*1024*1024 * ((safe_offset + 2*1024*1024 - 1)/(2*1024*1024));
+
 	auto r = load_kernel(safe_offset, kernel_decl->start);
 	switch(r.result_code) {
 		case lk_result::BAD_MAGIC:
@@ -216,7 +223,8 @@ extern "C" uint32_t bootstrap(uint32_t magic, multiboot::info* info) {
 	}
 
 	terminal.print("Kernel entry point : %x\n", (uint32_t)(r.entrypoint));
-	ready_paging();
+	ready_paging(kernel_zero);
 	early_gdt.code_segment.flags = 0b1010;
+
 	return r.entrypoint;
 }

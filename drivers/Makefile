@@ -6,10 +6,10 @@ vga_text/vga_text.o: FORCE
 	cd vga_text && $(MAKE)
 serial/serial.o: FORCE
 	cd serial && $(MAKE)
-gpt/gpt.o:
+gpt/gpt.o: FORCE
 	cd gpt && $(MAKE)
 
-fat/fat.o:
+fat/fat.o: FORCE
 	cd fat && $(MAKE)
 FORCE:
 

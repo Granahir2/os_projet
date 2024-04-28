@@ -99,13 +99,13 @@ friend FAT_dir_iterator;
 friend FAT_file;
 public:
     FAT_FileSystem(filehandler* fh);
-    dit* get_iterator() { return dit_ptr; }
+    dit* get_iterator() { return new dit(this);}
     
     void read(void* buffer, size_t size);
     void write(const void* buffer, size_t size);
 
 private:
-    dit* dit_ptr;
+    //dit* dit_ptr;
 
     size_t FATSz;
     filehandler* fh;

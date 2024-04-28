@@ -1,8 +1,9 @@
 #include "kstdlib/stdexcept.hh"
 #include "kernel/fs/fs.hh"
 #include "fat.hh"
+#include "kstdlib/cstdio.hh"
 
-// Implmenetation refers to Microsoft's Documentation of FAT system (c) Microsoft Corporation 2004
+// Implementation refers to Microsoft's Documentation of FAT system (c) Microsoft Corporation 2004
 // https://academy.cba.mit.edu/classes/networking_communications/SD/FAT.pdf
 
 namespace FAT {
@@ -11,10 +12,10 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
 {
     this->fh = fh;
 
-    unsigned int BPB_RsvdSecCnt;
-    unsigned int BPB_TotSec16;
-    unsigned int BPB_FATSz16;
-    unsigned int BPB_TotSec32;
+    uint16_t BPB_RsvdSecCnt;
+    uint16_t BPB_TotSec16; // Seems to make more sense given the reads ?
+    uint16_t BPB_FATSz16;
+    uint32_t BPB_TotSec32;
 
     fh->seek(0x0B, SET);
     fh->read(&this->BPB_BytsPerSec, 2);
@@ -28,16 +29,16 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
     fh->seek(0x20, SET);
     fh->read(&BPB_TotSec32, 4);
 
-    if (this->BPB_BytsPerSec != 512 || 
-        this->BPB_BytsPerSec != 1024 || 
-        this->BPB_BytsPerSec != 2048 || 
+    if (this->BPB_BytsPerSec != 512 &&
+        this->BPB_BytsPerSec != 1024 && 
+        this->BPB_BytsPerSec != 2048 && 
         this->BPB_BytsPerSec != 4096)
         throw logic_error("Corrupted FAT filesystem: Invalid BPB_BytsPerSec\n");
     if (BPB_RsvdSecCnt == 0)
         throw logic_error("Corrupted FAT filesystem: BPB_RsvdSecCnt is zero\n");
     if (this->BPB_NumFATs == 0)
         throw logic_error("Corrupted FAT filesystem: BPB_NumFATs is zero\n");
-    if (BPB_TotSec16 != 0)
+    if (BPB_TotSec16 != 0) 
     {
         // Supposedly FAT12 or FAT16
         if (BPB_TotSec32 != 0)

@@ -18,6 +18,10 @@ stack_bottom:
 .skip 16384 # 16 KiB
 stack_top:
 
+.global kernel_zero
+kernel_zero:
+.skip 8 # it's a uint64_t
+
 /*
 The linker script specifies _start as the entry point to the kernel and the
 bootloader will jump to this position once the kernel has been loaded. It
@@ -102,6 +106,9 @@ _start:
 
 	# We are in compatibility mode. We now jump to long mode
 	mov $memory_map_buffer, %esi
+
+	mov $kernel_zero, %eax
+	mov 0(%eax), %edx # Placeholder for kernel_zero
 
 	ljmp $0x08, $.longmode_gate
 .longmode_gate:
