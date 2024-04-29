@@ -42,22 +42,24 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
         throw logic_error("Corrupted FAT filesystem: Both BPB_TotSec16 and BPB_TotSec32 are non-zero\n");
     if (BPB_TotSec32 == 0 && BPB_TotSec16 == 0)
         throw logic_error("Corrupted FAT filesystem: Both BPB_TotSec16 and BPB_TotSec32 are zero\n");
-    if (this->BPB_RootEntCnt != 0) 
+    if (BPB_FATSz16 != 0) 
     {
         // Supposedly FAT12 or FAT16
+        if (this->BPB_RootEntCnt == 0)
+            throw logic_error("Corrupted FAT filesystem: BPB_RootEntCnt is zero in FAT12/FAT16\n");
         
-        this->number_of_clusters = (BPB_TotSec16 - (BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz16))) / BPB_SecPerClus;
+        this->number_of_clusters = ((BPB_TotSec16 ? BPB_TotSec16 : BPB_TotSec32) - (BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz16))) / BPB_SecPerClus;
         this->FATSz = BPB_FATSz16;
-        if (this->BPB_RootEntCnt < 4085)
+        if (this->number_of_clusters < 4085)
             this->FATType = FAT12, 
             this->BAD_CLUSTER = 0x0FF7,
             this->LAST_CLUSTER = 0x0FFF;
-        else if (this->BPB_RootEntCnt < 65525)
+        else if (this->number_of_clusters < 65525)
             this->FATType = FAT16, 
             this->BAD_CLUSTER = 0xFFF7,
             this->LAST_CLUSTER = 0xFFFF;
         else 
-            throw logic_error("Corrupted FAT filesystem: BPB_RootEntCnt is too large for FAT12/FAT16\n");
+            throw logic_error("Corrupted FAT filesystem: The number of clusters is too large for FAT12/FAT16\n");
         
         this->root_directory_begin_address_for_FAT12_and_FAT16 = 
             BPB_RsvdSecCnt * BPB_BytsPerSec + // FAT begin
@@ -71,6 +73,8 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
         // Supposedly FAT32
         if (BPB_FATSz16 != 0)
             throw logic_error("Corrupted FAT filesystem: BPB_FATSz16 is non-zero in FAT32\n");
+        if (this->BPB_RootEntCnt != 0)
+            throw logic_error("Corrupted FAT filesystem: BPB_RootEntCnt is non-zero in FAT32\n");
         unsigned int BPB_FATSz32;
         unsigned char BPB_FSVer;
         unsigned int BPB_BkBootSec;
