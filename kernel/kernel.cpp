@@ -290,7 +290,45 @@ extern "C" void kernel_main() {
 	fat_memfile.write(&_binary_fattest_raw_start, (size_t)(&_binary_fattest_raw_size));
 	fat_memfile.seek(0, SET);
 	
-	FAT::filesystem fat_testfs(&fat_memfile);
+	FAT::filesystem fat_testfs(&fat_memfile, false);
+    auto* fat_it = fat_testfs.get_iterator();
+    printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
+    *fat_it << "fatimage";
+    printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
+    drit_status status = (*fat_it << "longnamestresstest.txt");
+    if (status == DIR_ENTRY) {
+        printf("longnamestresstest.txt is a directory !\n");
+    } else if (status == NP) {
+        printf("longnamestresstest.txt does not exist !\n");
+    } else {
+        printf("longnamestresstest.txt is not a file !\n");
+    }
+    if(status == FILE_ENTRY) {
+        char buffer[16];
+        
+        smallptr<filehandler> longnamestresstest = fat_it->open_file("longnamestresstest.txt", WRONLY);
+        printf("Opened longnamestresstest.txt\n");
+        filehandler* fh = longnamestresstest.ptr;
+
+        printf("Writing to longnamestresstest.txt\n");
+        fh->seek(0, SET);
+        printf("DEBUG 1\n");
+        fh->write("Hello, world !\n", 15);
+        printf("DEBUG 2\n");
+        fh->seek(0, SET);
+        printf("DEBUG 3\n");
+        fh->read(buffer, 15);
+        printf("DEBUG 4\n");
+        buffer[15] = 0;
+        printf("Read from longnamestresstest.txt : %s\n", buffer);
+
+        fh->seek(0, SET);
+        fh->read(buffer, 15);
+        printf("Read from longnamestresstest.txt : %s\n", buffer);
+    } else {
+        printf("longnamestresstest.txt is not a file !\n");
+    }
+
 	/*
 		TODO : Add pertinent test cases here.
 	*/

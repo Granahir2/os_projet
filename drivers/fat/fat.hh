@@ -23,7 +23,7 @@ const uint16_t ATTR_LONG_NAME = 0x0F;
 const uint16_t LAST_LONG_ENTRY = 0x40;
 
 struct FAT_dir_entry {
-    char DIR_Name[11];
+    uint8_t DIR_Name[11];
     uint8_t DIR_Attr;
     uint8_t DIR_NTRes;
     uint8_t DIR_CrtTimeTenth;
@@ -98,7 +98,7 @@ class FAT_FileSystem : public fs {
 friend FAT_dir_iterator;
 friend FAT_file;
 public:
-    FAT_FileSystem(filehandler* fh);
+    FAT_FileSystem(filehandler* fh, bool verbose = false);
     dit* get_iterator() { return new dit(this);}
     
     void read(void* buffer, size_t size);
@@ -124,6 +124,7 @@ private:
     size_t number_of_clusters;
     size_t number_of_FAT_entries;
     size_t root_directory_begin_address_for_FAT12_and_FAT16;
+    size_t first_data_sector;
 
     uint32_t BAD_CLUSTER;
     uint32_t LAST_CLUSTER;
