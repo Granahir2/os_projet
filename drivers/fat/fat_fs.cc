@@ -38,13 +38,13 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
         throw logic_error("Corrupted FAT filesystem: BPB_RsvdSecCnt is zero\n");
     if (this->BPB_NumFATs == 0)
         throw logic_error("Corrupted FAT filesystem: BPB_NumFATs is zero\n");
-    if (BPB_TotSec16 != 0) 
+    if (BPB_TotSec32 != 0 && BPB_TotSec16 != 0)
+        throw logic_error("Corrupted FAT filesystem: Both BPB_TotSec16 and BPB_TotSec32 are non-zero\n");
+    if (BPB_TotSec32 == 0 && BPB_TotSec16 == 0)
+        throw logic_error("Corrupted FAT filesystem: Both BPB_TotSec16 and BPB_TotSec32 are zero\n");
+    if (this->BPB_RootEntCnt != 0) 
     {
         // Supposedly FAT12 or FAT16
-        if (BPB_TotSec32 != 0)
-            throw logic_error("Corrupted FAT filesystem: Both BPB_TotSec16 and BPB_TotSec32 are non-zero\n");
-        if (BPB_FATSz16 == 0)
-            throw logic_error("Corrupted FAT filesystem: BPB_FATSz16 is zero in FAT12/FAT16\n");
         
         this->number_of_clusters = (BPB_TotSec16 - (BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz16))) / BPB_SecPerClus;
         this->FATSz = BPB_FATSz16;
@@ -69,12 +69,8 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
     else
     {
         // Supposedly FAT32
-        if (BPB_TotSec32 == 0)
-            throw logic_error("Corrupted FAT filesystem: Both BPB_TotSec16 and BPB_TotSec32 are zero\n");
         if (BPB_FATSz16 != 0)
             throw logic_error("Corrupted FAT filesystem: BPB_FATSz16 is non-zero in FAT32\n");
-        if (this->BPB_RootEntCnt != 0)
-            throw logic_error("Corrupted FAT filesystem: BPB_RootEntCnt is non-zero in FAT32\n");
         unsigned int BPB_FATSz32;
         unsigned char BPB_FSVer;
         unsigned int BPB_BkBootSec;
@@ -116,6 +112,15 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh)
     this->BPB_NumFATs = BPB_NumFATs;
     this->BPB_RootEntCnt = BPB_RootEntCnt;
     this->number_of_FAT_entries = FATSz * BPB_BytsPerSec / 4;
+
+    if (this->FATType == FAT12)
+        printf("FAT12 filesystem detected\n");
+    else if (this->FATType == FAT16)
+        printf("FAT16 filesystem detected\n");
+    else if (this->FATType == FAT32)
+        printf("FAT32 filesystem detected\n");
+    else
+        throw logic_error("Invalid FAT type\n");
 }
 
 size_t FAT_FileSystem::cluster_number_to_address(size_t cluster_number)
