@@ -6,7 +6,7 @@ public:\
 	name() : w() {}\
 	explicit name(const char* what_arg) : parent(), w(what_arg) {}\
 	explicit name(const string& what_arg) : parent(), w(what_arg) {}\
-	const char* what() const noexcept override {return w.c_str();}\
+	virtual const char* what() const noexcept override {return w.c_str();}\
 private:\
 	string w;\
 }; 

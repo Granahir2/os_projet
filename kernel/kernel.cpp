@@ -289,7 +289,7 @@ extern "C" void kernel_main() {
 	memfile fat_memfile(RW, (size_t)(&_binary_fattest_raw_size));
 	fat_memfile.write(&_binary_fattest_raw_start, (size_t)(&_binary_fattest_raw_size));
 	fat_memfile.seek(0, SET);
-	
+
 	FAT::filesystem fat_testfs(&fat_memfile, false);
     auto* fat_it = fat_testfs.get_iterator();
     printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
@@ -306,7 +306,7 @@ extern "C" void kernel_main() {
     if(status == FILE_ENTRY) {
         char buffer[16];
         
-        smallptr<filehandler> longnamestresstest = fat_it->open_file("longnamestresstest.txt", WRONLY);
+        smallptr<filehandler> longnamestresstest = fat_it->open_file("longnamestresstest.txt", RW);
         printf("Opened longnamestresstest.txt\n");
         filehandler* fh = longnamestresstest.ptr;
 

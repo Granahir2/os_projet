@@ -58,7 +58,7 @@ class FAT_file {
 public:
     size_t read(void* buffer, size_t size);
     size_t write(const void* buffer, size_t size);
-    void seek(off_t offset, seekref whence);
+    off_t  seek(off_t offset, seekref whence);
     FAT_file(FAT_FileSystem* fat_fs, size_t file_size, size_t first_cluster_number);
 
 private:
@@ -69,7 +69,7 @@ private:
     size_t first_cluster_number;
     FAT_FileSystem* fat_fs;
 
-    void set_position(size_t position);
+    off_t set_position(size_t position);
 };
 
 using file = perm_fh<FAT::FAT_file>;
@@ -81,7 +81,7 @@ public:
     void pop();
     size_t depth();
     string operator[](size_t index);
-    smallptr<filehandler> open_file(const char* file_name, int mode, size_t cluster_number = SIZE_MAX);
+    smallptr<file> open_file(const char* file_name, int mode, size_t cluster_number = SIZE_MAX);
 
 private:
     FAT_dir_entry_with_full_name stack[32];

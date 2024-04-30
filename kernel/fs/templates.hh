@@ -13,18 +13,18 @@ public:
 
 	size_t write(const void* buf, size_t count) override {
 		if(m & WRONLY) { return raw_f.write(buf, count);}
-		else throw eperm();
+		else throw eperm("Unauthorized write");
 	}
 	size_t read(void* buf, size_t count) override {
 		if(m & RDONLY) { return raw_f.read(buf, count);}
-		else throw eperm();
+		else throw eperm("Unauthorized read");
 	}
 
 	off_t seek(off_t offset, seekref whence) override {
 		if constexpr (Seekable<T>) {
 			return do_seek(offset, whence);
 		} else {
-			throw einval();
+			throw einval("Seek on unseekable file");
 		}
 	}
 
@@ -85,7 +85,7 @@ public:
 		if(raw_it.push(str) == FILE_ENTRY) {
 			return raw_it.open_file(str, mode);
 		} else {
-			throw enoent();
+			throw enoent("File doesn't exist");
 		}
 	}
 
