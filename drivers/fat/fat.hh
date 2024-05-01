@@ -3,6 +3,7 @@
 #include "kernel/fs/templates.hh"
 #include "kstdlib/string.hh"
 
+// ATTENTION: FAT is numbered from 0
 namespace FAT {
 
 class FAT_dir_iterator;
@@ -51,6 +52,7 @@ struct FAT_Long_File_Name_entry {
 struct FAT_dir_entry_with_full_name {
     FAT_dir_entry entry;
     string full_name;
+    size_t address_of_entry_in_parent_directory;
 };
 
 
@@ -59,7 +61,7 @@ public:
     size_t read(void* buffer, size_t size);
     size_t write(const void* buffer, size_t size);
     off_t  seek(off_t offset, seekref whence);
-    FAT_file(FAT_FileSystem* fat_fs, size_t file_size, size_t first_cluster_number);
+    FAT_file(FAT_FileSystem* fat_fs, size_t file_size, size_t first_cluster_number, size_t address_of_entry_in_parent_directory);
 
 private:
     size_t read_write_head_position;
@@ -68,6 +70,7 @@ private:
     size_t file_size;
     size_t first_cluster_number;
     FAT_FileSystem* fat_fs;
+    size_t address_of_entry_in_parent_directory;
 
     off_t set_position(size_t position);
 };
@@ -87,7 +90,6 @@ private:
     FAT_dir_entry_with_full_name stack[32];
     unsigned int stack_pointer;
     unsigned int stack_size;
-    bool is_root;
 
     FAT_FileSystem* const fat_fs;
     unsigned short first_cluster_of_current_directory;
@@ -130,10 +132,10 @@ private:
     uint32_t LAST_CLUSTER;
 
     size_t cluster_number_to_address(size_t cluster_number);
-    size_t find_fat_entry(size_t cluster_number, unsigned int FatNumber = 1);
-    size_t cluster_number_to_fat_entry_index(size_t cluster_number, unsigned int FatNumber = 1);
+    size_t find_fat_entry(size_t cluster_number, unsigned int FatNumber = 0);
+    size_t cluster_number_to_fat_entry_index(size_t cluster_number, unsigned int FatNumber = 0);
     size_t find_free_cluster(size_t last_cluster_number);
-    void write_fat_entry(size_t cluster_number, size_t value, unsigned int FatNumber = 1);
+    void write_fat_entry(size_t cluster_number, size_t value, unsigned int FatNumber = 0);
 };  
 
 using filesystem = FAT_FileSystem;

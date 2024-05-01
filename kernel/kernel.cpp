@@ -290,44 +290,121 @@ extern "C" void kernel_main() {
 	fat_memfile.write(&_binary_fattest_raw_start, (size_t)(&_binary_fattest_raw_size));
 	fat_memfile.seek(0, SET);
 
-	FAT::filesystem fat_testfs(&fat_memfile, false);
+	FAT::filesystem fat_testfs(&fat_memfile, true);
+    size_t read_number_of_bytes, written_number_of_bytes;
     auto* fat_it = fat_testfs.get_iterator();
-    printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
+    //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
     *fat_it << "fatimage";
-    printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
+    //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
+    *fat_it << "superduperultramegalongdirectoryname";
+    *fat_it << "..";
     drit_status status = (*fat_it << "longnamestresstest.txt");
     if (status == DIR_ENTRY) {
         printf("longnamestresstest.txt is a directory !\n");
     } else if (status == NP) {
         printf("longnamestresstest.txt does not exist !\n");
-    } else {
-        printf("longnamestresstest.txt is not a file !\n");
-    }
-    if(status == FILE_ENTRY) {
+    } else if(status == FILE_ENTRY) {
         char buffer[16];
         
         smallptr<filehandler> longnamestresstest = fat_it->open_file("longnamestresstest.txt", RW);
-        printf("Opened longnamestresstest.txt\n");
         filehandler* fh = longnamestresstest.ptr;
 
-        printf("Writing to longnamestresstest.txt\n");
+        // Try to read empty file
         fh->seek(0, SET);
-        printf("DEBUG 1\n");
-        fh->write("Hello, world !\n", 15);
-        printf("DEBUG 2\n");
-        fh->seek(0, SET);
-        printf("DEBUG 3\n");
-        fh->read(buffer, 15);
-        printf("DEBUG 4\n");
-        buffer[15] = 0;
-        printf("Read from longnamestresstest.txt : %s\n", buffer);
+        read_number_of_bytes = fh->read(buffer, 15);
+        if (read_number_of_bytes != 0) {
+            printf("Error while reading from empty file: longnamestresstest.txt\n");
+        }
 
+        // Try to write to empty file
+        //printf("Writing to longnamestresstest.txt\n");
         fh->seek(0, SET);
-        fh->read(buffer, 15);
-        printf("Read from longnamestresstest.txt : %s\n", buffer);
+        written_number_of_bytes = fh->write("Hello, world !\n", 15);
+        if (written_number_of_bytes != 15) {
+            printf("Error while writing to longnamestresstest.txt\n");
+        }
+        fh->seek(0, SET);
+        read_number_of_bytes = fh->read(buffer, 15);
+        if (read_number_of_bytes != 15) {
+            printf("Error while reading from longnamestresstest.txt\n");
+        }
     } else {
         printf("longnamestresstest.txt is not a file !\n");
     }
+    printf("File system : TEST 1 PASSED\n");
+    // Stress test with long directory names
+    *fat_it << "superduperultramegalongdirectoryname";
+    //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
+    status = *fat_it << "anothersuperduperultramegalongfilename.txt";
+    if (status == DIR_ENTRY) {
+        printf("anothersuperduperultramegalongfilename.txt is a directory !\n");
+    } else if (status == NP) {
+        printf("anothersuperduperultramegalongfilename.txt does not exist !\n");
+    } else if(status == FILE_ENTRY) {
+        char buffer[16];
+        
+        smallptr<filehandler> anothersuperduperultramegalongfilename = fat_it->open_file("anothersuperduperultramegalongfilename.txt", RW);
+        filehandler* fh = anothersuperduperultramegalongfilename.ptr;
+        
+        fh->seek(0, SET);
+        size_t written_number_of_bytes = fh->write("Hello, world !\n", 15);
+        if (written_number_of_bytes != 15) {
+            printf("Error while writing to anothersuperduperultramegalongfilename.txt\n");
+        }
+        fh->seek(0, SET);
+        size_t read_number_of_bytes = fh->read(buffer, 15);
+        if (read_number_of_bytes != 15) {
+            printf("Error while reading from anothersuperduperultramegalongfilename.txt\n");
+        }
+    } else {
+        printf("anothersuperduperultramegalongfilename.txt is not a file !\n");
+    }
+    printf("File system : TEST 2 PASSED\n");
+
+    // Test going back to parent directory
+    *fat_it << "..";
+    //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
+    status = (*fat_it << "toto.txt");
+    if (status == DIR_ENTRY) {
+        printf("toto.txt is a directory !\n");
+    } else if (status == NP) {
+        printf("toto.txt does not exist !\n");
+    } else if(status == FILE_ENTRY) {
+        char buffer[16];
+        
+        smallptr<filehandler> longnamestresstest = fat_it->open_file("toto.txt", RW);
+        filehandler* fh = longnamestresstest.ptr;
+
+        fh->seek(0, SET);
+        fh->read(buffer, 15);
+        char supposed_buffer[14] = "Here be text\r";
+        if (strncmp(buffer, supposed_buffer, 13) != 0) 
+        {
+            printf("Error while reading from toto.txt\n");
+            printf("Supposed buffer : ");
+            for (int i = 0; i < 13; i++) printf("%d ", supposed_buffer[i]);
+            printf("\n");
+            printf("Buffer : ");
+            for (int i = 0; i < 13; i++) printf("%d ", buffer[i]);
+            printf("\n");
+            printf("Comparison result : %d\n", strcmp(buffer, supposed_buffer));
+        }
+    } else {
+        printf("toto.txt is not a file !\n");
+    }
+    printf("File system : TEST 3 PASSED\n");
+
+    // Test opening and reading a freshly written file that was empty before
+    *fat_it << "longnamestresstest.txt";
+    smallptr<filehandler> longnamestresstest = fat_it->open_file("longnamestresstest.txt", RW);
+    filehandler* fh = longnamestresstest.ptr;
+    char buffer[16];
+    fh->seek(0, SET);
+    read_number_of_bytes = fh->read(buffer, 15);
+    if (read_number_of_bytes != 15) {
+        printf("Error while reading from longnamestresstest.txt\n");
+    }
+    printf("File system : TEST 4 PASSED\n");
 
 	/*
 		TODO : Add pertinent test cases here.

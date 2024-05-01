@@ -7,7 +7,6 @@ namespace FAT {
 FAT_dir_iterator::FAT_dir_iterator(FAT_FileSystem* fat_fs, int initial_stack_size) :
         stack_pointer(0), 
         stack_size(initial_stack_size), 
-        is_root(true), 
         fat_fs(fat_fs), 
         first_cluster_of_current_directory(fat_fs->BPB_RootClus) {}
 
@@ -27,7 +26,7 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
     int current_checksum = -1;
     bool there_is_long_name = false;
 
-    if (fat_fs->FATType == FAT32 || !is_root)
+    if (fat_fs->FATType == FAT32 || stack_pointer > 0) // If it is not root directory or FAT32
     {
         if (current_cluster == SIZE_MAX)
             current_cluster = this->first_cluster_of_current_directory;
@@ -120,7 +119,7 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
 
                     // Found the directory
                     this->first_cluster_of_current_directory = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    stack[stack_pointer++] = {DirEntry, basic_string(directory_name)};
+                    stack[stack_pointer++] = {DirEntry, basic_string(directory_name), fat_fs->fh->seek(-32, CUR)};
                     return DIR_ENTRY;
                 }
             }
@@ -215,9 +214,8 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
                         //throw runtime_error("Found a file with matching name, but it is not a directory");
 
                     // Found the directory
-                    is_root = false;
                     this->first_cluster_of_current_directory = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    stack[stack_pointer++] = {DirEntry, basic_string(directory_name)};
+                    stack[stack_pointer++] = {DirEntry, basic_string(directory_name), fat_fs->fh->seek(-32, CUR)};
                     return DIR_ENTRY;
                 }
             }
@@ -231,6 +229,10 @@ void FAT_dir_iterator::pop() {
     if (stack_pointer == 0)
         throw runtime_error("Stack underflow");
     stack_pointer--;
+    if (stack_pointer == 0)
+        first_cluster_of_current_directory = fat_fs->BPB_RootClus;
+    else
+        first_cluster_of_current_directory = stack[stack_pointer - 1].entry.DIR_FstClusLO + (stack[stack_pointer - 1].entry.DIR_FstClusHI << 16);
 }
 
 size_t FAT_dir_iterator::depth() {
@@ -257,7 +259,7 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
     int number_of_LFN_entries = -1;
     int current_checksum = -1;
     
-    if (fat_fs->FATType == FAT32 || !is_root)
+    if (fat_fs->FATType == FAT32 || stack_pointer > 0) // If it is not root directory or FAT32
     {
         if (current_cluster == SIZE_MAX)
             current_cluster = this->first_cluster_of_current_directory;
@@ -343,7 +345,7 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
                     // Found the file
                     size_t file_size = DirEntry.DIR_FileSize;
                     size_t first_cluster = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    return new file(mode, fat_fs/*->fh*/, file_size, first_cluster);
+                    return new file(mode, fat_fs/*->fh*/, file_size, first_cluster, fat_fs->fh->seek(-32, CUR));
                 }
             }
         }
@@ -434,7 +436,7 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
                     // Found the file
                     size_t file_size = DirEntry.DIR_FileSize;
                     size_t first_cluster = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    return new file(mode, fat_fs/*->fh*/, file_size, first_cluster);
+                    return new file(mode, fat_fs/*->fh*/, file_size, first_cluster, fat_fs->fh->seek(-32, CUR));
                 }
             }
         }

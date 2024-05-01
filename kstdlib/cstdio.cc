@@ -22,7 +22,7 @@ int puts(const char* src) {
 }
 }
 template<typename T>
-int print_number(T x, char* buf, int base, int minnum = 1, bool upper = false) {
+int print_number(T x, char* buf, int base, int minnum = 1, bool upper = false, bool sign = false) {
 	if(base == 0) return 0;
 
 	const char lutLower[] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
@@ -30,7 +30,7 @@ int print_number(T x, char* buf, int base, int minnum = 1, bool upper = false) {
 	const char* lut = upper ? lutUpper : lutLower;
 
 	if(x == 0) {buf[0] = '0'; return 1;}
-	if(x < 0)  {buf[0] = '-'; return print_number(-x, &buf[1], base);}
+	if(sign && x < 0)  {buf[0] = '-'; return print_number(-x, &buf[1], base);}
 
 	
 	if(2 <= base && base <= 16) {
@@ -66,7 +66,7 @@ int vaprintf(const char* src, va_list arglist) {
 			{int x = va_arg(arglist, int);
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
-			 written += print_number(x, buffer, 10);
+			 written += print_number(x, buffer, 10, 1, false, true);
 			 puts(buffer);} break;
 		case 'x':
 			{int x = va_arg(arglist, int);

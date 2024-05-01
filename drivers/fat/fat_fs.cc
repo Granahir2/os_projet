@@ -12,7 +12,6 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
 {
     this->fh = fh;
 
-    uint16_t BPB_RsvdSecCnt;
     uint16_t BPB_TotSec16; // Seems to make more sense given the reads ?
     uint16_t BPB_FATSz16;
     uint32_t BPB_TotSec32;
@@ -20,7 +19,7 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
     fh->seek(0x0B, SET);
     fh->read(&this->BPB_BytsPerSec, 2);
     fh->read(&this->BPB_SecPerClus, 1);
-    fh->read(&BPB_RsvdSecCnt, 2);
+    fh->read(&this->BPB_RsvdSecCnt, 2);
     fh->read(&this->BPB_NumFATs, 1);
     fh->read(&this->BPB_RootEntCnt, 2);    
     fh->read(&BPB_TotSec16, 2);
@@ -34,7 +33,7 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
         this->BPB_BytsPerSec != 2048 && 
         this->BPB_BytsPerSec != 4096)
         throw logic_error("Corrupted FAT filesystem: Invalid BPB_BytsPerSec\n");
-    if (BPB_RsvdSecCnt == 0)
+    if (this->BPB_RsvdSecCnt == 0)
         throw logic_error("Corrupted FAT filesystem: BPB_RsvdSecCnt is zero\n");
     if (this->BPB_NumFATs == 0)
         throw logic_error("Corrupted FAT filesystem: BPB_NumFATs is zero\n");
@@ -48,7 +47,7 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
         if (this->BPB_RootEntCnt == 0)
             throw logic_error("Corrupted FAT filesystem: BPB_RootEntCnt is zero in FAT12/FAT16\n");
         
-        this->number_of_clusters = ((BPB_TotSec16 ? BPB_TotSec16 : BPB_TotSec32) - (BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz16))) / BPB_SecPerClus;
+        this->number_of_clusters = ((BPB_TotSec16 ? BPB_TotSec16 : BPB_TotSec32) - (this->BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz16))) / BPB_SecPerClus;
         this->FATSz = BPB_FATSz16;
         if (this->number_of_clusters < 4085)
             this->FATType = FAT12, 
@@ -62,7 +61,7 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
             throw logic_error("Corrupted FAT filesystem: The number of clusters is too large for FAT12/FAT16\n");
         
         this->root_directory_begin_address_for_FAT12_and_FAT16 = 
-            BPB_RsvdSecCnt * BPB_BytsPerSec + // FAT begin
+            this->BPB_RsvdSecCnt * BPB_BytsPerSec + // FAT begin
             (this->BPB_NumFATs * BPB_FATSz16 * BPB_BytsPerSec); // FAT size
         this->BPB_RootClus = 0;
         //throw logic_error("FAT12/FAT16 not supported\n");
@@ -103,7 +102,7 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
         this->FATType = FAT32;
 
         // Calculate number of entries per cluster
-        this->number_of_clusters = (BPB_TotSec32 - (BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz32))) / BPB_SecPerClus;
+        this->number_of_clusters = (BPB_TotSec32 - (this->BPB_RsvdSecCnt + (this->BPB_NumFATs * BPB_FATSz32))) / BPB_SecPerClus;
         this->BAD_CLUSTER = 0x0FFFFFF7;
         this->LAST_CLUSTER = 0x0FFFFFFF;
     }
@@ -115,7 +114,7 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
     this->BPB_NumFATs = BPB_NumFATs;
     this->BPB_RootEntCnt = BPB_RootEntCnt;
     this->number_of_FAT_entries = FATSz * BPB_BytsPerSec / 4;
-    this->first_data_sector = BPB_RsvdSecCnt + (this->BPB_NumFATs * FATSz);
+    this->first_data_sector = this->BPB_RsvdSecCnt + (this->BPB_NumFATs * FATSz);
     if (this->FATType == FAT12 || this->FATType == FAT16)
         this->first_data_sector += ((this->BPB_RootEntCnt * 32 + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec);
     if (this->FATType == FAT12)
@@ -140,6 +139,7 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
         printf("Number of FAT entries: %d\n", this->number_of_FAT_entries);
         printf("Root directory begin address: %d\n", this->root_directory_begin_address_for_FAT12_and_FAT16);
         printf("First cluster of the root directory: %d\n", this->BPB_RootClus);
+        printf("First data sector: %d\n", this->first_data_sector);
     }
 }
 
@@ -162,7 +162,7 @@ size_t FAT_FileSystem::cluster_number_to_fat_entry_index(size_t cluster_number, 
     else if (FATType == FAT32) FAT_Offset = cluster_number * 4;
     else throw logic_error("Invalid FAT type\n");
 
-    return FAT_Offset + (BPB_RsvdSecCnt + (FatNumber-1) * FATSz) * BPB_BytsPerSec;
+    return FAT_Offset + (BPB_RsvdSecCnt + FatNumber * FATSz) * BPB_BytsPerSec;
 }
 
 size_t FAT_FileSystem::find_fat_entry(size_t cluster_number, unsigned int FatNumber)
@@ -197,19 +197,38 @@ size_t FAT_FileSystem::find_fat_entry(size_t cluster_number, unsigned int FatNum
 }
 
 size_t FAT_FileSystem::find_free_cluster(size_t last_cluster_number) {
-    if (last_cluster_number < 2)
-        throw logic_error("In function find_free_cluster(): Invalid cluster number\n");
-
     // Start going through the FAT table
-    fh->seek(BPB_RsvdSecCnt * BPB_BytsPerSec, SET);
-    size_t FATEntry;
+    size_t FATEntry = 0;
     size_t next_cluster_number = 0;
+    fh->seek(BPB_RsvdSecCnt * BPB_BytsPerSec, SET);
     for (unsigned int i = 0; i < number_of_FAT_entries; i++)
     {
-        fh->read(&FATEntry, 4);
+        if (FATType == FAT12)
+        {
+            if (i & 1)
+            {
+                fh->read(&FATEntry, 2);
+                FATEntry >>= 4;
+            }
+            else
+            {
+                fh->read(&FATEntry, 2);
+                FATEntry &= 0x0FFF;
+            }
+        }
+        else if (FATType == FAT16)
+        {
+            fh->read(&FATEntry, 2);
+        }
+        else if (FATType == FAT32)
+        {
+            fh->read(&FATEntry, 4);
+            FATEntry &= 0x0FFFFFFF;
+        }
+        else throw logic_error("Invalid FAT type\n");
         if (FATEntry == 0)
         {
-            next_cluster_number = i + 2;
+            next_cluster_number = i;
             break;
         }
     }
@@ -217,7 +236,8 @@ size_t FAT_FileSystem::find_free_cluster(size_t last_cluster_number) {
     {
         for (int i = 0; i < BPB_NumFATs; i++)
         {
-            write_fat_entry(last_cluster_number, next_cluster_number, i);
+            if (last_cluster_number != 0)
+                write_fat_entry(last_cluster_number, next_cluster_number, i);
             write_fat_entry(next_cluster_number, LAST_CLUSTER, i);
         }
     }

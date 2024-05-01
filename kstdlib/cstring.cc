@@ -1,4 +1,5 @@
 #include "cstring.hh"
+#include "cstdio.hh"
 #include <stdint.h>
 
 char* strcpy(char* __restrict dest, const char* __restrict src) {
