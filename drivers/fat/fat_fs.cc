@@ -73,10 +73,10 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
             throw logic_error("Corrupted FAT filesystem: BPB_FATSz16 is non-zero in FAT32\n");
         if (this->BPB_RootEntCnt != 0)
             throw logic_error("Corrupted FAT filesystem: BPB_RootEntCnt is non-zero in FAT32\n");
-        unsigned int BPB_FATSz32;
-        unsigned char BPB_FSVer;
-        unsigned int BPB_BkBootSec;
-        unsigned int BPB_Reserved[3];
+        uint32_t BPB_FATSz32;
+        uint16_t BPB_FSVer;
+        uint16_t BPB_BkBootSec;
+        uint32_t BPB_Reserved[3];
         fh->seek(0x24, SET);
         fh->read(&BPB_FATSz32, 4);
         if (BPB_FATSz32 == 0)
@@ -92,8 +92,9 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
 
         fh->seek(0x32, SET);
         fh->read(&BPB_BkBootSec, 2);
-        //if (BPB_BkBootSec != 0 || BPB_BkBootSec != 6)
-    //        throw logic_error("Corrupted FAT filesystem: BPB_BkBootSec is not 0 or 6\n");
+        printf("BPB_BkBootSec: %d\n", BPB_BkBootSec);
+        if (BPB_BkBootSec != 0 && BPB_BkBootSec != 6)
+            throw logic_error("Corrupted FAT filesystem: BPB_BkBootSec is not 0 or 6\n");
         fh->read(BPB_Reserved, 3 * 4);
         if (BPB_Reserved[0] != 0 || BPB_Reserved[1] != 0 || BPB_Reserved[2] != 0)
             throw logic_error("Corrupted FAT filesystem: Reserved fields are not zero\n");
