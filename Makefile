@@ -59,7 +59,7 @@ clean:
 	cd drivers && $(MAKE) clean
 
 makefat:
-	- mkfs.fat -C fattest.raw 32768
+	- mkfs.fat -F 32 -C fattest.raw 65536
 	- mkdir -p fatbuild
 	sudo mount -o loop fattest.raw fatbuild
 	sudo cp -r fatimage fatbuild

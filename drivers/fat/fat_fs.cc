@@ -92,8 +92,8 @@ FAT_FileSystem::FAT_FileSystem(filehandler* fh, bool verbose)
 
         fh->seek(0x32, SET);
         fh->read(&BPB_BkBootSec, 2);
-        if (BPB_BkBootSec != 0 || BPB_BkBootSec != 6)
-            throw logic_error("Corrupted FAT filesystem: BPB_BkBootSec is not 0 or 6\n");
+        //if (BPB_BkBootSec != 0 || BPB_BkBootSec != 6)
+    //        throw logic_error("Corrupted FAT filesystem: BPB_BkBootSec is not 0 or 6\n");
         fh->read(BPB_Reserved, 3 * 4);
         if (BPB_Reserved[0] != 0 || BPB_Reserved[1] != 0 || BPB_Reserved[2] != 0)
             throw logic_error("Corrupted FAT filesystem: Reserved fields are not zero\n");
