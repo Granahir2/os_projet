@@ -149,6 +149,7 @@ void memcpy(void* __restrict dest, const void* __restrict src, size_t n) {
 	for(size_t cnt = n; cnt > 0; cnt--, cdest++,csrc++) {*cdest = *csrc;}
 }
 
+
 void memmove(void* dest, const void* src, size_t n) {
 	auto cdest = (unsigned char*)dest;
 	auto csrc  = (const unsigned char*)src;
@@ -159,4 +160,17 @@ void memmove(void* dest, const void* src, size_t n) {
 		for(size_t cnt = n; cnt > 0; cnt--) {cdest[cnt-1] = csrc[cnt-1];}
 	}
 }
+}
+
+void memset(volatile void* a, int ch, size_t n) {
+	auto c = (unsigned char)ch;
+	auto p = (unsigned char*)a;
+	for(size_t cnt = n; cnt > 0; cnt--, p++) {*p = c;}
+}
+
+void memcpy(volatile void* __restrict dest, const void* __restrict src, size_t n) {
+	auto cdest = (unsigned char*)dest;
+	auto csrc  = (const unsigned char*)src;
+
+	for(size_t cnt = n; cnt > 0; cnt--, cdest++,csrc++) {*cdest = *csrc;}
 }

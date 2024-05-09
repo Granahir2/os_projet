@@ -8,7 +8,7 @@ namespace mem {
 constexpr page_directory make_linear_large_page_directory(uint64_t offset) {
 	page_directory pagedir;
 	for(int i = 0; i < 512; ++i) {
-		pagedir.entry[i].content = (offset + i*2*1024*1024) | 0b0000010000011;
+		pagedir.entry[i].content = (offset + i*2*1024*1024) | 0b0000010011011;
 	}
 	return pagedir;
 };

@@ -24,6 +24,10 @@
 #include "fs/memf.hh"
 #include "drivers/fat/fat.hh"
 
+#include "drivers/ahci/ahci.hh"
+#include "drivers/ahci/interface.hh"
+#include "drivers/pci/configspace.hh"
+
 extern "C" void abort() {
 	puts("Kernel panic !\n");
 	halt();
@@ -175,10 +179,11 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, u
 
 }
 
+/*
 extern void* _binary_fattest_raw_start;
 extern void* _binary_fattest_raw_end;
 extern size_t _binary_fattest_raw_size;
-
+*/
 extern "C" void kernel_main() {	
 	
 	auto x = kmmap((void*)(-2*1024*1024*1024ull), 4096);
@@ -277,20 +282,26 @@ extern "C" void kernel_main() {
 		puts("Cannot read stdout !\n");
 	}
 
-	try {
-		throw 'a';
-	} catch(char e) {
-		printf("Caught char exception e = %c\n", e);
-	}
-	printf("Still going !\n");
-	printf("Binary object size : %p\n", &_binary_fattest_raw_size);	
+	pci::enumerate(); 
+	pci::cspace conf_space;
+	smallptr<filehandler> f = conf_space.get_file(0b100000, RW);
+	ahci::driver drv(f.ptr);
+	auto nf = ahci::file(RW, 0, &drv);
 
-	
-	memfile fat_memfile(RW, (size_t)(&_binary_fattest_raw_size));
-	fat_memfile.write(&_binary_fattest_raw_start, (size_t)(&_binary_fattest_raw_size));
-	fat_memfile.seek(0, SET);
+	unsigned char lol[512];
+	nf.read(lol, 512);
+	printf("Boot sector of drive :\n");
+	for(int i = 0; i < 512; ++i) {
+		auto c = (lol[i] >= 32 && lol[i] < 128) ? lol[i] : '.'; 
+		if(i % 16 == 15) {
+			printf("%c\n",c);
+		} else {
+			printf("%c",c);
+		}
+	} 
+	nf.seek(0, SET);
 
-	FAT::filesystem fat_testfs(&fat_memfile, true);
+	FAT::filesystem fat_testfs(&nf, true);
     size_t read_number_of_bytes, written_number_of_bytes;
     auto* fat_it = fat_testfs.get_iterator();
     //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
@@ -408,13 +419,6 @@ extern "C" void kernel_main() {
         printf("Error while reading from longnamestresstest.txt\n");
     }
     printf("File system : TEST 4 PASSED\n");
-
-	/*
-		TODO : Add pertinent test cases here.
-	*/
-
-
-	pci::enumerate(); 
 
 	throw underflow_error("Out of cake.");
 	puts("Got cake ?!\n");

@@ -37,3 +37,7 @@ void  memset(void* a, int ch, size_t n);
 void  memcpy(void* dest, const void* src, size_t n);
 void  memmove(void* dest, const void* src, size_t n); 
 }
+
+void memset(volatile void* a, int ch, size_t n);
+void memcpy(volatile void* dest, const void* src, size_t n);
+

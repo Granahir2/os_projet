@@ -15,7 +15,7 @@ CRTEND=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtend.o)
 os.iso: boot/bootstrap.bin klinker.ld kernel/kernelfull.o kstdlib/stdlib.o drivers/drivers.o fattest.o grub.cfg $(CRT0) $(CRTI) $(CRTN)
 	$(CXX) -nostdlib $(CXXFLAGS) -mcmodel=large -static -o kernel.bin -T klinker.ld \
 		$(CRT0) $(CRTI) $(CRTBEGIN) \
-		kernel/kernelfull.o kstdlib/stdlib.o drivers/drivers.o fattest.o -lstdc++ -lgcc \
+		kernel/kernelfull.o kstdlib/stdlib.o drivers/drivers.o -lstdc++ -lgcc \
 		$(CRTEND) $(CRTN)
 	mkdir -p isodir/boot/grub
 	cp grub.cfg isodir/boot/grub
@@ -27,9 +27,6 @@ stdinit/crt*.o: FORCE
 	cd stdinit && $(MAKE) $(notdir $@)
 
 fattest.raw: makefat
-
-fattest.o: fattest.raw
-	x86_64-elf-objcopy -I binary -B i386:x86-64 -O elf64-x86-64 $^ $@
 
 misc: FORCE
 	cd misc && $(MAKE)
@@ -46,9 +43,14 @@ FORCE:
 
 .PHONY: clean test debug makefat
 test: os.iso
-	qemu-system-x86_64 -cdrom os.iso -m 4G -serial stdio | tee log.txt
+	qemu-system-x86_64 -cdrom os.iso -m 4G -serial stdio -drive id=disk,file=fattest.raw,if=none,format=raw \
+-device ahci,id=ahci \
+-device ide-hd,drive=disk,bus=ahci.0 -boot order=dc | tee log.txt
 debug: os.iso
-	qemu-system-x86_64 -cdrom os.iso -s -S  -monitor stdio -no-shutdown -no-reboot -d int
+	qemu-system-x86_64 -cdrom os.iso -s -S  -monitor stdio -no-shutdown -no-reboot -d int \
+-drive id=disk,file=fattest.raw,if=none,format=raw \
+-device ahci,id=ahci \
+-device ide-hd,drive=disk,bus=ahci.0 -boot order=dc | tee log.txt
 clean:
 	$(RM) *.o *.bin *.iso log.txt
 	$(RM) -r isodir
@@ -59,7 +61,7 @@ clean:
 	cd drivers && $(MAKE) clean
 
 makefat:
-	- mkfs.fat -F 32 -C fattest.raw 65536
+	- mkfs.fat -F 16 -C fattest.raw 65536
 	- mkdir -p fatbuild
 	sudo mount -o loop fattest.raw fatbuild
 	sudo cp -r fatimage fatbuild

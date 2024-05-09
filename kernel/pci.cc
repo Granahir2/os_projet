@@ -1,6 +1,6 @@
 #include "pci.hh"
 #include "x86/asm_stubs.hh"
-
+#include "kstdlib/cstdio.hh"
 namespace pci {
 
 void enumerate() {
@@ -11,6 +11,7 @@ void enumerate() {
 		uint16_t res = (x64::inl(0xcfc) >> 16) & 0xffff;
 		if(res != 0xffff) {
 			printf("Found device %x:%x of class %x\n", bus, dev, res);
+			printf("Conf access %p\n", (uint64_t)(conf_access));
 		}
 	}
 	}

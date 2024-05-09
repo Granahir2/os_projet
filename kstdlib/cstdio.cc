@@ -29,7 +29,7 @@ int print_number(T x, char* buf, int base, int minnum = 1, bool upper = false, b
 	const char lutUpper[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 	const char* lut = upper ? lutUpper : lutLower;
 
-	if(x == 0) {buf[0] = '0'; return 1;}
+	if(x == 0 && minnum == 1) {buf[0] = '0'; return 1;}
 	if(sign && x < 0)  {buf[0] = '-'; return print_number(-x, &buf[1], base);}
 
 	
@@ -69,16 +69,16 @@ int vaprintf(const char* src, va_list arglist) {
 			 written += print_number(x, buffer, 10, 1, false, true);
 			 puts(buffer);} break;
 		case 'x':
-			{int x = va_arg(arglist, int);
+			{unsigned x = va_arg(arglist, unsigned int);
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
-			 written += print_number(x, buffer, 16);
+			 written += print_number(x, buffer, 16, sizeof(x)*2);
 			 puts(buffer);} break;
 		case 'X':
-			{int x = va_arg(arglist, int);
+			{unsigned x = va_arg(arglist, unsigned int);
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
-			 written += print_number(x, buffer, 16,true);
+			 written += print_number(x, buffer, 16, sizeof(x)*2, true);
 			 puts(buffer);} break;
 		case 'u':
 			{unsigned int x = va_arg(arglist, unsigned int);
@@ -86,6 +86,21 @@ int vaprintf(const char* src, va_list arglist) {
 			 memset(buffer, 0, sizeof(x)*8 + 2);
 			 written += print_number(x, buffer, 10);
 			 puts(buffer);} break;
+		case 'l':
+			switch(s[2]) { // We have LL = L so we get away not supporting %ll{u,d}
+				case 'u':
+					{unsigned long x = va_arg(arglist, unsigned long);
+		 			char buffer[sizeof(x)*8 + 2];
+		 			memset(buffer, 0, sizeof(x)*8 + 2);
+					written += print_number(x, buffer, 10);
+		 			puts(buffer); off++;} break;
+				case 'd':
+					{long x = va_arg(arglist, long);
+		 			char buffer[sizeof(x)*8 + 2];
+		 			memset(buffer, 0, sizeof(x)*8 + 2);
+					written += print_number(x, buffer, 10, 1, false, true);
+		 			puts(buffer); off++;} break;
+			} break;
 		case 'p':
 			{uintptr_t x = va_arg(arglist, uintptr_t);
 			 char buffer[sizeof(x)*8 + 2];
