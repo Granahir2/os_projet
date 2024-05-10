@@ -15,11 +15,23 @@ size_t fwrite(const void* buffer, size_t size, size_t cnt, FILE* f) {
 	return cnt; // naïf
 }
 
-int puts(const char* src) {
+int fputc(int c, FILE* stream) {
+	fwrite(&c, 1, 1, stream);
+	return (unsigned char)c;
+} 
+
+int putchar(int c) {return fputc(c, stdout);}
+
+int fputs(const char* src, FILE* stream) {
 	size_t n = strlen(src);
-	fwrite(src, n, 1, stdout);
+	fwrite(src, n, 1, stream);
 	return 0; // naïf
 }
+
+int puts(const char* src) {
+	auto x = fputs(src, stdout); putchar('\n'); return x;
+}
+
 }
 template<typename T>
 int print_number(T x, char* buf, int base, int minnum = 1, bool upper = false, bool sign = false) {
@@ -50,13 +62,13 @@ int print_number(T x, char* buf, int base, int minnum = 1, bool upper = false, b
 }
 
 extern "C" {
-int vaprintf(const char* src, va_list arglist) {
+int vafprintf(FILE* stream, const char* src, va_list arglist) {
 	auto s = strchr(src, '%');
 	if(s == NULL) {
-		puts(src); return strlen(src);
+		fputs(src, stream); return strlen(src);
 	}
 
-	auto written = fwrite(src, s - src, 1, stdout); 
+	auto written = fwrite(src, s - src, 1, stream); 
 	
 	int off = 2; // number of bytes to jump forward
 	switch(s[1]) {
@@ -67,25 +79,25 @@ int vaprintf(const char* src, va_list arglist) {
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
 			 written += print_number(x, buffer, 10, 1, false, true);
-			 puts(buffer);} break;
+			 fputs(buffer, stream);} break;
 		case 'x':
 			{unsigned x = va_arg(arglist, unsigned int);
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
 			 written += print_number(x, buffer, 16, sizeof(x)*2);
-			 puts(buffer);} break;
+			 fputs(buffer, stream);} break;
 		case 'X':
 			{unsigned x = va_arg(arglist, unsigned int);
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
 			 written += print_number(x, buffer, 16, sizeof(x)*2, true);
-			 puts(buffer);} break;
+			 fputs(buffer, stream);} break;
 		case 'u':
 			{unsigned int x = va_arg(arglist, unsigned int);
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
 			 written += print_number(x, buffer, 10);
-			 puts(buffer);} break;
+			 fputs(buffer, stream);} break;
 		case 'l':
 			switch(s[2]) { // We have LL = L so we get away not supporting %ll{u,d}
 				case 'u':
@@ -93,37 +105,45 @@ int vaprintf(const char* src, va_list arglist) {
 		 			char buffer[sizeof(x)*8 + 2];
 		 			memset(buffer, 0, sizeof(x)*8 + 2);
 					written += print_number(x, buffer, 10);
-		 			puts(buffer); off++;} break;
+		 			fputs(buffer, stream); off++;} break;
 				case 'd':
 					{long x = va_arg(arglist, long);
 		 			char buffer[sizeof(x)*8 + 2];
 		 			memset(buffer, 0, sizeof(x)*8 + 2);
 					written += print_number(x, buffer, 10, 1, false, true);
-		 			puts(buffer); off++;} break;
+		 			fputs(buffer, stream); off++;} break;
 			} break;
 		case 'p':
 			{uintptr_t x = va_arg(arglist, uintptr_t);
 			 char buffer[sizeof(x)*8 + 2];
 			 memset(buffer, 0, sizeof(x)*8 + 2);
 			 written += print_number(x, buffer, 16, sizeof(x)*2);
-			 puts(buffer);} break;
+			 fputs(buffer, stream);} break;
 		case 'c':
 			{int ch = va_arg(arglist, int);
 			 unsigned char buffer[2] = {(unsigned char)ch, 0};
 			 written += 1; 
-			 puts((char*)buffer);} break;
+			 fputs((char*)buffer, stream);} break;
 		case 's':
 			{char* x = va_arg(arglist, char*);
-			 puts(x);
+			 fputs(x, stream);
 			 written += strlen(x);} break;
 	}
-	return written + vaprintf(s + off, arglist);
+	return written + vafprintf(stream, s + off, arglist);
 }
 
-int printf(const char* src,...) {
+int fprintf(FILE* stream, const char* src,...) {
 	va_list arglist;
 	va_start(arglist, src);
-	auto r = vaprintf(src, arglist);
+	auto r = vafprintf(stream, src, arglist);
+	va_end(arglist);
+	return r;
+}
+
+int printf(const char* src, ...) {
+	va_list arglist;
+	va_start(arglist, src);
+	auto r = vafprintf(stdout, src, arglist);
 	va_end(arglist);
 	return r;
 }

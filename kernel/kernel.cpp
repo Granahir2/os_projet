@@ -29,7 +29,7 @@
 #include "drivers/pci/configspace.hh"
 
 extern "C" void abort() {
-	puts("Kernel panic !\n");
+	puts("Inrecoverable kernel panic !");
 	halt();
 }
 
@@ -44,15 +44,15 @@ void test_phmem_resolving(x64::linaddr l) {
 	printf("Resolving %p to %p ",
 		l, z.resolved);
 	if(z.status == mem::phmem_resolvant::NOT_CANONICAL) {
-		puts("Because the address wasn't canonical\n");
+		puts("Because the address wasn't canonical");
 		return;
 	} else if(z.status == mem::phmem_resolvant::NOT_MAPPED) {
-		puts("Because the address wasn't mapped\n");
+		puts("Because the address wasn't mapped");
 		return;
 	}
 	if(z.isRW) {
-		puts("RW\n");
-	} else {puts("RO\n");}
+		puts("RW");
+	} else {puts("RO");}
 }
 
 constexpr x64::segment_descriptor craft_code_segment() {
@@ -104,7 +104,7 @@ __attribute__((interrupt)) void DF_handler(void*) {
 	return;
 }
 __attribute__((interrupt)) void APIC_timer(void*) {
-	puts("Bopped !\n");
+	puts("Bopped !");
 	interrupt_manager imngr;
 	imngr.send_EOI();
 	return;
@@ -239,26 +239,26 @@ extern "C" void kernel_main() {
 	printf("Current path %s\n", it->get_canonical_path().c_str());
 
 	if((*it << "dev") != DIR_ENTRY) {
-		printf("Filesystem failure !\n");
+		puts("Filesystem failure !");
 	}	
 	printf("Current path %s\n", it->get_canonical_path().c_str());
 	if((*it << "ser0") == FILE_ENTRY) {
-		puts("/dev/ser0 is a file !\n");
+		puts("/dev/ser0 is a file !");
 		auto* old = stdout;
 		smallptr<filehandler> fh = it->open_file("ser0", WRONLY);
 		stdout = fh.ptr;
-		puts("Written to /dev/ser0 :)\n");
+		puts("Written to /dev/ser0 :)");
 		stdout = old;
 	} else {
 		puts("/dev/ser0 is not a file !");
 	}
 
 	if((*it << "tty0") == FILE_ENTRY) {
-		puts("/dev/tty0 is a file !\n");
+		puts("/dev/tty0 is a file !");
 		auto* old = stdout;
 		smallptr<filehandler> fh = it->open_file("tty0", WRONLY);
 		stdout = fh.ptr;
-		puts("Written to /dev/tty0 :)\n");
+		puts("Written to /dev/tty0 :)");
 		stdout = old;
 	} else {
 		puts("/dev/tty0 is not a file !");
@@ -274,12 +274,12 @@ extern "C" void kernel_main() {
 	try {
 		stdout->seek(0, SET);
 	} catch(einval&) {
-		puts("Cannot seek on stdout !\n");
+		puts("Cannot seek on stdout !");
 	}
 	try {
 		stdout->read(nullptr, 42);
 	} catch(eperm&) {
-		puts("Cannot read stdout !\n");
+		puts("Cannot read stdout !");
 	}
 
 	pci::enumerate(); 
@@ -289,17 +289,34 @@ extern "C" void kernel_main() {
 	auto nf = ahci::file(RW, 0, &drv);
 
 	unsigned char lol[512];
+	puts("Before read");
 	nf.read(lol, 512);
-	printf("Boot sector of drive :\n");
+	puts("Boot sector of drive :");
 	for(int i = 0; i < 512; ++i) {
 		auto c = (lol[i] >= 32 && lol[i] < 128) ? lol[i] : '.'; 
 		if(i % 16 == 15) {
 			printf("%c\n",c);
 		} else {
-			printf("%c",c);
+			putchar(c);
 		}
 	} 
 	nf.seek(0, SET);
+	strcpy((char*)lol, "Trash! Trash everywhere in this drive!"); 
+	nf.seek(0, SET);
+	fputs("Mdr lol", &nf);
+	nf.seek(0, SET);
+	nf.read(lol, 512);
+	nf.seek(0, SET);
+	puts("Boot sector of drive :");
+	for(int i = 0; i < 512; ++i) {
+		auto c = (lol[i] >= 32 && lol[i] < 128) ? lol[i] : '.'; 
+		if(i % 16 == 15) {
+			printf("%c\n",c);
+		} else {
+			putchar(c);
+		}
+	} 
+
 
 	FAT::filesystem fat_testfs(&nf, true);
     size_t read_number_of_bytes, written_number_of_bytes;
@@ -312,11 +329,11 @@ extern "C" void kernel_main() {
     *fat_it << "..";
     printf("Current path : %s\n", fat_it->get_canonical_path().c_str()); // We end up at the root
     drit_status status = (*fat_it << "longnamestresstest.txt"); // This directory lookup *fails* by seeking out of the filesystem entirely
-    puts("Looked up longnamestresstest.txt\n"); // If lines 299 to 301 are commented out (no desync), we get further along the tests (pass TEST 1) but eventually fail for similar reasons
+    puts("Looked up longnamestresstest.txt"); // If lines 299 to 301 are commented out (no desync), we get further along the tests (pass TEST 1) but eventually fail for similar reasons
     if (status == DIR_ENTRY) {
-        printf("longnamestresstest.txt is a directory !\n");
+        puts("longnamestresstest.txt is a directory !");
     } else if (status == NP) {
-        printf("longnamestresstest.txt does not exist !\n");
+        puts("longnamestresstest.txt does not exist !");
     } else if(status == FILE_ENTRY) {
         char buffer[16];
         
@@ -327,7 +344,7 @@ extern "C" void kernel_main() {
         fh->seek(0, SET);
         read_number_of_bytes = fh->read(buffer, 15);
         if (read_number_of_bytes != 0) {
-            printf("Error while reading from empty file: longnamestresstest.txt\n");
+            puts("Error while reading from empty file: longnamestresstest.txt");
         }
 
         // Try to write to empty file
@@ -335,25 +352,25 @@ extern "C" void kernel_main() {
         fh->seek(0, SET);
         written_number_of_bytes = fh->write("Hello, world !\n", 15);
         if (written_number_of_bytes != 15) {
-            printf("Error while writing to longnamestresstest.txt\n");
+            puts("Error while writing to longnamestresstest.txt");
         }
         fh->seek(0, SET);
         read_number_of_bytes = fh->read(buffer, 15);
         if (read_number_of_bytes != 15) {
-            printf("Error while reading from longnamestresstest.txt\n");
+            puts("Error while reading from longnamestresstest.txt");
         }
     } else {
-        printf("longnamestresstest.txt is not a file !\n");
+        puts("longnamestresstest.txt is not a file !");
     }
-    printf("File system : TEST 1 PASSED\n");
+    puts("File system : TEST 1 PASSED");
     // Stress test with long directory names
     *fat_it << "superduperultramegalongdirectoryname";
     //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
     status = *fat_it << "anothersuperduperultramegalongfilename.txt";
     if (status == DIR_ENTRY) {
-        printf("anothersuperduperultramegalongfilename.txt is a directory !\n");
+        puts("anothersuperduperultramegalongfilename.txt is a directory !");
     } else if (status == NP) {
-        printf("anothersuperduperultramegalongfilename.txt does not exist !\n");
+        puts("anothersuperduperultramegalongfilename.txt does not exist !");
     } else if(status == FILE_ENTRY) {
         char buffer[16];
         
@@ -363,26 +380,26 @@ extern "C" void kernel_main() {
         fh->seek(0, SET);
         size_t written_number_of_bytes = fh->write("Hello, world !\n", 15);
         if (written_number_of_bytes != 15) {
-            printf("Error while writing to anothersuperduperultramegalongfilename.txt\n");
+            puts("Error while writing to anothersuperduperultramegalongfilename.txt");
         }
         fh->seek(0, SET);
         size_t read_number_of_bytes = fh->read(buffer, 15);
         if (read_number_of_bytes != 15) {
-            printf("Error while reading from anothersuperduperultramegalongfilename.txt\n");
+            puts("Error while reading from anothersuperduperultramegalongfilename.txt");
         }
     } else {
-        printf("anothersuperduperultramegalongfilename.txt is not a file !\n");
+        puts("anothersuperduperultramegalongfilename.txt is not a file !");
     }
-    printf("File system : TEST 2 PASSED\n");
+    puts("File system : TEST 2 PASSED");
 
     // Test going back to parent directory
     *fat_it << "..";
     //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
     status = (*fat_it << "toto.txt");
     if (status == DIR_ENTRY) {
-        printf("toto.txt is a directory !\n");
+        puts("toto.txt is a directory !");
     } else if (status == NP) {
-        printf("toto.txt does not exist !\n");
+        puts("toto.txt does not exist !");
     } else if(status == FILE_ENTRY) {
         char buffer[16];
         
@@ -391,22 +408,22 @@ extern "C" void kernel_main() {
 
         fh->seek(0, SET);
         fh->read(buffer, 15);
-        char supposed_buffer[14] = "Here be text\r";
+        char supposed_buffer[14] = "Here be text\n";
         if (strncmp(buffer, supposed_buffer, 13) != 0) 
         {
-            printf("Error while reading from toto.txt\n");
-            printf("Supposed buffer : ");
+            puts("Error while reading from toto.txt");
+            fputs("Supposed buffer : ", stdout);
             for (int i = 0; i < 13; i++) printf("%d ", supposed_buffer[i]);
-            printf("\n");
+            puts("");
             printf("Buffer : ");
             for (int i = 0; i < 13; i++) printf("%d ", buffer[i]);
-            printf("\n");
+            puts("");
             printf("Comparison result : %d\n", strcmp(buffer, supposed_buffer));
         }
     } else {
-        printf("toto.txt is not a file !\n");
+        puts("toto.txt is not a file !");
     }
-    printf("File system : TEST 3 PASSED\n");
+    puts("File system : TEST 3 PASSED");
 
     // Test opening and reading a freshly written file that was empty before
     *fat_it << "longnamestresstest.txt";
@@ -416,12 +433,12 @@ extern "C" void kernel_main() {
     fh->seek(0, SET);
     read_number_of_bytes = fh->read(buffer, 15);
     if (read_number_of_bytes != 15) {
-        printf("Error while reading from longnamestresstest.txt\n");
+        puts("Error while reading from longnamestresstest.txt");
     }
-    printf("File system : TEST 4 PASSED\n");
+    puts("File system : TEST 4 PASSED");
 
 	throw underflow_error("Out of cake.");
-	puts("Got cake ?!\n");
+	puts("Got cake ?!");
 	halt();
 }
 
@@ -430,8 +447,8 @@ extern "C" void landing_pad() {
 	try {
 		kernel_main();
 	} catch(std::exception& e) {
-		puts("\n---begin kernel panic !---\n");
+		puts("\n---begin kernel panic !---");
 		puts(e.what());
-		puts("\n---End kernel panic---\n");
+		puts("---End kernel panic---");
 	}
 }

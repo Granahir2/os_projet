@@ -12,6 +12,8 @@ public:
 	int start_read(volatile void* buffer,size_t at, uint16_t numsector);
 	bool check_on_read(int rddesc);
 
+	int start_write(volatile const void* buffer, size_t at, uint16_t numsector);
+
 	uint64_t total_size = 0;
 private:
 	eff_command cmdslot[32];

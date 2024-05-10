@@ -113,9 +113,33 @@ int port_drv::start_read(volatile void* buffer, size_t at, uint16_t numsec) {
 	for(; slot <= ((p->hmem->capability >> 8) & 0x1f) && (curr_running >> (slot) & 1); ++slot) {}
 	if(slot > (p->hmem->capability >> 8 & 0x1f)) {throw ebusy();}
 
-	cmdslot[slot].reset(false);
+	cmdslot[slot].reset(false); // Add provisions for more than page-sized buffers (may not be phy contiguous) ?
 	cmdslot[slot].setup_linear_prdt(mem::resolve_to_phmem((x64::linaddr)(buffer)).resolved, numsec * 512);
 	cmdslot[slot].setup_header_fis(&port->cmdlist_base[slot], &read, sizeof(read));
+
+	port->command_issue = (1u << slot);
+	return slot;	
+}
+
+
+int port_drv::start_write(volatile const void* buffer, size_t at, uint16_t numsec) {
+	port->interrupt_status = 0xffffffff;
+
+	fis::reg_h2d write;
+	write.command = 0x35;
+	write.config |= 0x80;
+	write.lbal24_device   = (at & 0xffffff) | 0x40000000;
+	write.lbah24_featureh = (at >> 24) & 0xffffff; 
+	write.count = numsec;
+
+	uint32_t curr_running = port->command_issue;
+	int slot = 0;
+	for(; slot <= ((p->hmem->capability >> 8) & 0x1f) && (curr_running >> (slot) & 1); ++slot) {}
+	if(slot > (p->hmem->capability >> 8 & 0x1f)) {throw ebusy();}
+
+	cmdslot[slot].reset(true);
+	cmdslot[slot].setup_linear_prdt(mem::resolve_to_phmem((x64::linaddr)(buffer)).resolved, numsec * 512);
+	cmdslot[slot].setup_header_fis(&port->cmdlist_base[slot], &write, sizeof(write));
 
 	port->command_issue = (1u << slot);
 	return slot;	
