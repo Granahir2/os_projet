@@ -47,7 +47,7 @@ test: os.iso fattest.raw
 -device ahci,id=ahci \
 -device ide-hd,drive=disk,bus=ahci.0 -boot order=dc | tee log.txt
 debug: os.iso fattest.raw
-	qemu-system-x86_64 -cdrom os.iso -s -S  -monitor stdio -no-shutdown -no-reboot -d int \
+	qemu-system-x86_64 -cdrom os.iso -monitor stdio -no-shutdown -no-reboot -d int \
 -drive id=disk,file=fattest.raw,if=none,format=raw \
 -device ahci,id=ahci \
 -device ide-hd,drive=disk,bus=ahci.0 -boot order=dc | tee log.txt

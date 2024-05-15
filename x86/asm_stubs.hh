@@ -8,6 +8,7 @@ void reload_descriptors(); // assumes a gdt layout
 void reload_tss(uint16_t desc);
 
 void enable_sse();
+void enable_xsave();
 
 void lidt(uint64_t desc_ptr);
 void outb(uint16_t port, uint8_t x);

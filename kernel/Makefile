@@ -2,10 +2,12 @@ CXXFLAGS += -m64 -mno-red-zone -mcmodel=large -DKERNEL -I$(CURDIR)
 ASFLAGS += -64
 
 KOBJECTS = kernel.o kmmap.o interrupts.o pci.o ../misc/display64.o ../x86/asm_stubs.o \
-mem/utils.o mem/phmem_manager.o mem/default_pages.o fs/rootfs.o fs/devfs.o
+mem/utils.o mem/phmem_manager.o mem/default_pages.o fs/rootfs.o fs/devfs.o proc/saveregs_hook.o
+
 
 kernelfull.o: $(KOBJECTS)
 	$(CXX) -r -o kernelfull.o $(KOBJECTS)
+proc/saveregs_hook.o: proc/saveregs_hook.s
 interrupts.o: interrupts.hh interrupts.cc
 kmmap.o: kmmap.cc kernel.hh #to complete
 

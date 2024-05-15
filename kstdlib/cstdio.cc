@@ -112,7 +112,13 @@ int vafprintf(FILE* stream, const char* src, va_list arglist) {
 		 			memset(buffer, 0, sizeof(x)*8 + 2);
 					written += print_number(x, buffer, 10, 1, false, true);
 		 			fputs(buffer, stream); off++;} break;
-			} break;
+				case 'x':
+					{unsigned long x = va_arg(arglist, unsigned long);
+					 char buffer[sizeof(x)*8 + 2];
+					 memset(buffer, 0, sizeof(x)*8 + 2);
+					 written += print_number(x, buffer, 16, sizeof(x)*2);
+					 fputs(buffer, stream); off++;} break;
+					} break;
 		case 'p':
 			{uintptr_t x = va_arg(arglist, uintptr_t);
 			 char buffer[sizeof(x)*8 + 2];

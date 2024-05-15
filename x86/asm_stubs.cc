@@ -53,6 +53,16 @@ void enable_sse() {
 	)foo");
 }
 
+void enable_xsave() {
+	/*asm(R"foo(
+	push %rax
+	mov %cr4, %rax
+	or $0x40000, %rax
+	mov %rax, %cr4
+	pop %rax
+	)foo");*/
+}
+
 void sei() {
 	asm("sti");
 }

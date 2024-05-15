@@ -3,6 +3,14 @@
 #include "x86/descriptors.hh"
 #include "x86/memory.hh"
 
+struct interrupt_frame {
+	uint64_t rip;
+	uint64_t cs;
+	uint64_t rflags;
+	uint64_t rsp;
+	uint64_t ss;
+};
+
 struct interrupt_manager {
 public:
 	interrupt_manager();

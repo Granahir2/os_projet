@@ -23,7 +23,7 @@
 
 #include "fs/memf.hh"
 #include "drivers/fat/fat.hh"
-
+#include "proc/proc.hh"
 #include "drivers/ahci/ahci.hh"
 #include "drivers/ahci/interface.hh"
 #include "drivers/pci/configspace.hh"
@@ -72,8 +72,31 @@ constexpr x64::segment_descriptor craft_data_segment() {
 };
 
 
-__attribute__((interrupt)) void DE_handler(void*) {
+
+extern "C" {
+regstate registers;
+void saveregs_hook();
+void loadregs_hook();
+}
+
+extern "C" void print_regs() {
+	for(int i = 0; i < 16; ++i) {
+		printf("REG[%d] = %lx\n", i, registers.gp_regs[i]);
+	}
+
+	printf("RIP = %lx RFLAGS = %lx\n", registers.rip, registers.flags);
+	printf("SS = %lx CS = %lx\n", registers.ss, registers.cs);
+}
+
+
+__attribute__((interrupt)) void DE_handler(interrupt_frame* ifr) {
 	puts("#DE");
+	printf("RIP : %lx\n", ifr->rip);
+	printf("CS : %lx\n", ifr->cs);
+	printf("RFLAGS : %lx\n", ifr->rflags);
+	printf("RSP : %lx\n", ifr->rsp);
+	printf("SS : %lx\n", ifr->ss);
+
 	halt();
 	return;
 }
@@ -125,7 +148,7 @@ serial::portdriver* ser0_drv;
 
 extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, uint64_t kernel_zero)  {
 	x64::enable_sse();
-   
+	x64::enable_xsave();   
 
 	static _gdt gdt; 
 	static x64::TSS tss;
@@ -170,6 +193,8 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, u
 	imngr.register_gate(0xb, 1, (uint64_t)(&NP_handler));	
 	imngr.register_gate(0xd, 1, (uint64_t)(&GP_handler));
 	imngr.register_gate(0x8, 1, (uint64_t)(&DF_handler));
+
+	imngr.register_gate(21, 1, (uint64_t)(&saveregs_hook));
 	x64::linaddr req_isr[1] = {(x64::linaddr)(&APIC_timer)};
 	
 	uint8_t vector = imngr.register_interrupt_block(1, req_isr);	
@@ -437,7 +462,15 @@ extern "C" void kernel_main() {
     }
     puts("File system : TEST 4 PASSED");
 
-	throw underflow_error("Out of cake.");
+	static int i = 0;
+
+	asm("int $21"); // "setjmp"
+	printf("Hello !\n");
+	if(i++) {
+		throw underflow_error("Out of cake.");
+	} else {
+		loadregs_hook(); // "longjmp"
+	}
 	puts("Got cake ?!");
 	halt();
 }
