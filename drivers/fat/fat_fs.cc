@@ -172,7 +172,7 @@ size_t FAT_FileSystem::find_fat_entry(size_t cluster_number, unsigned int FatNum
         throw logic_error("In function find_fat_entry(): Invalid cluster number\n");
     
     // Section 4.1: Determination of FAT entry for a cluster number
-    size_t FATEntry;
+    size_t FATEntry = 0;
     
     fh->seek(cluster_number_to_fat_entry_index(cluster_number, FatNumber), SET);
     if (FATType == FAT12)
