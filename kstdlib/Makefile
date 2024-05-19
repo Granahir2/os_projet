@@ -9,5 +9,6 @@ cstring.o: cstring.cc cstring.hh
 cstdlib.o: cstdlib.hh cstdlib.cc
 new.o: new.cc new.hh ../kernel/kernel.hh
 cstdio.o: cstdio.cc cstring.hh cstdio.hh ../kernel/fs/fs.hh
+map.o: map.cc map.hh
 clean:
 	$(RM) *.o
