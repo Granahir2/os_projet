@@ -1,5 +1,7 @@
 #pragma once
 #include "proc.hh"
+#include "kstdlib/map.hh"
+#include <cstdint>
 
 /***************************************
 * Scheduler's logic. The hl_sched class (highlevel scheduling) should have :
@@ -25,7 +27,73 @@
 
 struct command {
 	proc* to_exec;
-	long int how_long; // In fractions of cycle
+	uint64_t how_long; // In fractions of cycle
 	bool spin_after = false; // If true then, after the timeshare is exhausted, wait for the next cycle trigger to come.
 };
 
+struct graphnode {
+    proc* process;
+    uint64_t weight;
+    uint64_t how_long;
+    uint8_t balance;
+    bool weight_fixed;
+    map<uint16_t, graphnode*> forward_edges;
+    map<uint16_t, graphnode*> backward_edges;
+
+    graphnode(proc* p, uint64_t w, bool wf): process(p), weight(w), balance(0), weight_fixed(wf) {}
+};
+
+struct graphnode_list {
+    graphnode* node;
+    graphnode_list* next;
+
+    graphnode_list(graphnode* n): node(n), next(nullptr) {}
+    ~graphnode_list();
+};
+
+
+using rb_node = node<pair<uint16_t, graphnode*>>;
+
+class hl_sched {
+public:
+    command next();
+    void update_weights();
+    void add_process(proc* p, uint64_t weight, bool weight_fixed = false);
+    void remove_process(proc* p);
+    void add_edge(uint16_t pid1, uint16_t pid2);
+    void remove_edge(uint16_t pid1, uint16_t pid2);
+    void exec_report(bool graceful_yield);
+
+    hl_sched(): pid_to_node_pointer(), 
+                rb_tree_root(pid_to_node_pointer.tree.root), 
+                visited(),
+                ready_queue_head(nullptr), 
+                ready_queue_tail(nullptr), 
+                ready_queue_iterator(nullptr), 
+                graph_is_up_to_date(true), 
+                weights_are_up_to_date(true),
+                waiting_for_report(false),
+                cycle_counter(0) {}
+private:
+    map<uint16_t, graphnode*> pid_to_node_pointer;
+    map<uint16_t, bool> visited;
+    map<uint16_t, bool> in_recursion_stack;
+
+    graphnode_list* ready_queue_head;
+    graphnode_list* ready_queue_tail;
+    graphnode_list* ready_queue_iterator;
+    graphnode* current_node;
+    uint16_t cycle_counter;
+
+    bool graph_is_up_to_date;
+    bool weights_are_up_to_date;
+    bool waiting_for_report;
+
+    void add_to_ready_queue_at_the_front(graphnode* node);
+    void delete_queue();
+
+    void topological_sort();
+    rb_node* rb_tree_root;
+    void dfs(rb_node* n);
+    void hl_sched::dfs_over_forward_edges(rb_node* n);
+};

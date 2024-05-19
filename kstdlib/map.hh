@@ -12,22 +12,23 @@ template <class T>
 struct node {
     T value;
     color color;
-    node* parent;
-    node* left;
-    node* right;
+    node<T>* parent;
+    node<T>* left;
+    node<T>* right;
 };
 
 template <class T>
 class rb_tree {
 public:
+    node<T>* root;
+
     rb_tree();
     ~rb_tree();
     void insert(const T& value);
     void erase(const T& value);
     void clear();
     bool is_empty() const;
-
-    node<T>* root;
+    
 private:
     void insert_fixup(node<T>* n);
     void erase_fixup(node<T>* n);
