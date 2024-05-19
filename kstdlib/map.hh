@@ -3,6 +3,20 @@
  * Not tested, used at your own risk.
  */
 
+enum class color {
+    RED,
+    BLACK
+};
+
+template <class T>
+struct node {
+    T value;
+    color color;
+    node* parent;
+    node* left;
+    node* right;
+};
+
 template <class T>
 class rb_tree {
 public:
@@ -12,27 +26,26 @@ public:
     void erase(const T& value);
     void clear();
     bool is_empty() const;
-private:
-    enum class color {
-        RED,
-        BLACK
-    };
-    struct node {
-        T value;
-        color color;
-        node* parent;
-        node* left;
-        node* right;
-    };
-    node* root;
-    void insert_fixup(node* n);
-    void erase_fixup(node* n);
-    void rotate_left(node* n);
-    void rotate_right(node* n);
-    void clear(node* n);
 
-    void transplant(node* u, node* v);
-    node* find_node(const T& value) const;
+    node<T>* root;
+private:
+    void insert_fixup(node<T>* n);
+    void erase_fixup(node<T>* n);
+    void rotate_left(node<T>* n);
+    void rotate_right(node<T>* n);
+    void clear(node<T>* n);
+
+    void transplant(node<T>* u, node<T>* v);
+    node<T>* find_node(const T& value) const;
+};
+template <class T_key, class T_value>
+struct pair {
+    T_key key;
+    T_value value;
+
+    bool operator<(const pair<T_key, T_value>& other) const {
+        return key < other.key;
+    }
 };
 
 template <class T_key, class T_value>
@@ -49,10 +62,7 @@ public:
     bool contains(const T_key& key) const;
     size_t size() const;
     bool empty() const;
-private:
-    struct pair {
-        T_key key;
-        T_value value;
-    };
-    rb_tree<pair> tree;
+
+    
+    rb_tree<pair<T_key, T_value> > tree;
 };
