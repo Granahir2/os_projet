@@ -37,10 +37,11 @@ struct graphnode {
     uint64_t how_long;
     uint8_t balance;
     bool weight_fixed;
+    bool new_process;
     map<uint16_t, graphnode*> forward_edges;
     map<uint16_t, graphnode*> backward_edges;
 
-    graphnode(proc* p, uint64_t w, bool wf): process(p), weight(w), balance(0), weight_fixed(wf) {}
+    graphnode(proc* p, uint64_t w, bool wf): process(p), weight(w), balance(0), weight_fixed(wf), new_process(true) {}
 };
 
 struct graphnode_list {
@@ -58,13 +59,14 @@ class hl_sched {
 public:
     command next();
     void update_weights();
-    void add_process(proc* p, uint64_t weight, bool weight_fixed = false);
+    void add_process(proc* p, uint64_t weight = initial_weight, bool weight_fixed = false);
     void remove_process(proc* p);
     void add_edge(uint16_t pid1, uint16_t pid2);
     void remove_edge(uint16_t pid1, uint16_t pid2);
     void exec_report(bool graceful_yield);
 
-    hl_sched(): pid_to_node_pointer(), 
+    hl_sched(uint64_t initial_weight = 1'000'000'000):
+                pid_to_node_pointer(), 
                 rb_tree_root(pid_to_node_pointer.tree.root), 
                 visited(),
                 ready_queue_head(nullptr), 
@@ -73,7 +75,8 @@ public:
                 graph_is_up_to_date(true), 
                 weights_are_up_to_date(true),
                 waiting_for_report(false),
-                cycle_counter(0) {}
+                cycle_counter(0),
+                initial_weight(initial_weight) {}
 private:
     map<uint16_t, graphnode*> pid_to_node_pointer;
     map<uint16_t, bool> visited;
@@ -84,6 +87,7 @@ private:
     graphnode_list* ready_queue_iterator;
     graphnode* current_node;
     uint16_t cycle_counter;
+    uint64_t initial_weight;
 
     bool graph_is_up_to_date;
     bool weights_are_up_to_date;

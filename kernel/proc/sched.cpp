@@ -58,28 +58,60 @@ void hl_sched::exec_report(bool graceful_yield) {
     waiting_for_report = false;
 }
 
+// Calculate the integer square root of x,
+// from https://web.archive.org/web/20120306040058/http://medialab.freaknet.org/martin/src/sqrt/sqrt.c
+uint16_t isqrt(uint8_t x) {
+    uint16_t op, res, one;
+    op = x;
+    res = 0;
+    /* "one" starts at the highest power of four <= than the argument. */
+    one = 1 << 10;  /* second-to-top bit set */
+    while (one > op) one >>= 2;
+    while (one != 0) {
+        if (op >= res + one) {
+            op -= res + one;
+            res += one << 1;  // <-- faster than 2 * one
+        }
+        res >>= 1;
+        one >>= 2;
+    }
+    return res;
+}
+
 void hl_sched::update_weights() {
     if (weights_are_up_to_date) return;
     if (ready_queue_head == nullptr) 
         throw runtime_error("Ready queue is empty");
+    uint64_t total_sqrt_balance = 0;
     uint64_t total_weight = 0;
     uint64_t total_time = 0;
+
+    // Magic algorithm
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
-        // TODO: update the weight using the balance
-        node->balance = 0;
+        if (node->weight_fixed) continue;
+        if (node->new_process) node->balance = cycle_counter >> 1, node->new_process = false;
+        node->balance = isqrt(node->balance);
+        total_sqrt_balance += node->balance;
+    }
+    for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
+        graphnode* node = it->node;
+        if (node->weight_fixed) continue;
+        node->weight = node->weight / total_sqrt_balance * node->balance;
         total_weight += node->weight;
+        node->balance = 0;
     }
     // Calculate the time for each process, proportional to its weight
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
-        node->how_long = node->weight * (1ll<<32) / total_weight;
+        node->how_long = node->weight / total_weight * (1ll<<32);
         total_time += node->how_long;
     }
     // If the total time is not 2^32, then we need to adjust the last process
     if (total_time != (1ll<<32)) {
         ready_queue_tail->node->how_long += (1ll<<32) - total_time;
     }
+    cycle_counter = 0;
     weights_are_up_to_date = true;
 }
 
@@ -120,7 +152,6 @@ command hl_sched::next() {
             visited.clear();
             in_recursion_stack.clear();
             graph_is_up_to_date = true;
-            cycle_counter = 0;
         }
         // Update the weights if necessary
         update_weights();
