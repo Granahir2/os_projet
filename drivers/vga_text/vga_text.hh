@@ -12,7 +12,7 @@ integration of drivers with devfs.
 */
 
 namespace vga {
-constexpr static x64::phaddr buff_addr  = 0xb8000;
+constexpr static x64::linaddr buff_addr  = 0xb8000 - 512*1024*1024*1024ul;
 constexpr static int ncol = 80;
 constexpr static int nrow = 25;
 

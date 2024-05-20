@@ -7,23 +7,23 @@ uint32_t interrupt_manager::isallocd[7];
 x64::gate_descriptor interrupt_manager::idt[256]; // We don't worry about thread safety YET.
 
 void ioapic_write(uint32_t reg, uint32_t data) {
-	uint32_t volatile* const ioapic_addr = (uint32_t*)0xfec00000;
-	uint32_t volatile* const ioapic_data = (uint32_t*)0xfec00010;
+	uint32_t volatile* const ioapic_addr = (uint32_t*)(0xfec00000 - 512*1024*1024*1024ul);
+	uint32_t volatile* const ioapic_data = (uint32_t*)(0xfec00010 - 512*1024*1024*1024ul);
 
 	*ioapic_addr = reg;
 	*ioapic_data = data; 
 }
 
 uint32_t ioapic_read(uint32_t reg) {
-	uint32_t volatile* const ioapic_addr = (uint32_t*)0xfec00000;
-	uint32_t volatile* const ioapic_data= (uint32_t*)0xfec00010;
+	uint32_t volatile* const ioapic_addr = (uint32_t*)(0xfec00000 - 512*1024*1024*1024ul);
+	uint32_t volatile* const ioapic_data= (uint32_t*)(0xfec00010 - 512*1024*1024*1024ul);
 
 	*ioapic_addr = reg;
 	return *ioapic_data;
 }
 
 interrupt_manager::interrupt_manager() { 
-	apic = (uint32_t volatile*)(x64::rdmsr(0x1b) & 0xffffff000);
+	apic = (uint32_t volatile*)((x64::rdmsr(0x1b) & 0xffffff000) - 512*1024*1024*1024ul);
 	if(!isinit) {
 		isinit = true;	
 
@@ -52,13 +52,18 @@ interrupt_manager::interrupt_manager() {
 	}
 }
 
-void interrupt_manager::register_gate(uint8_t vector, uint8_t ist, x64::linaddr isr) {
-	idt[vector].attributes |= 0x80;
+void interrupt_manager::register_gate(uint8_t vector, uint8_t ist, x64::linaddr isr, uint8_t pl) {
+	idt[vector].attributes |= 0x80 | (pl << 5);
 	idt[vector].offset_lo = isr & 0xffff;
 	idt[vector].cs_segment_selector = 0x08;
 	idt[vector].offset_mid = (isr >> 16) & 0xffff;
 	idt[vector].ist_value = ist;
 	idt[vector].offset_hi = isr >> 32;
+
+	if(vector > 32) {
+		isallocd[(vector - 32)/32] |= 1u << ((vector - 32) % 32);
+	}
+
 }
 
 uint64_t interrupt_manager::apic_base() { return (uint64_t)(apic); }

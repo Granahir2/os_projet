@@ -1,7 +1,6 @@
 #pragma once
 #include "kstdlib/cstdio.hh"
 #include "x86/memory.hh"
-#include "kernel/kernel.hh"
 namespace mem {
 
 constexpr static x64::phaddr phalloc_null = (x64::phaddr)(-1);

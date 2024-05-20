@@ -27,7 +27,11 @@ void eff_command::reset(bool ndir) {
 
 void eff_command::setup_linear_prdt(x64::phaddr start, size_t len) {
 	curr_prdt_offset++;
-	if(len % 2 != 0 || start % 2 != 0) {throw einval("Transfers must be word-sized");}
+	if(len % 2 != 0 || start % 2 != 0) {
+	printf("start = %lx\n", start);
+	throw einval("Transfers must be word-sized");}
+
+	auto comtab_eff = (decltype(comtab))((uintptr_t)(comtab) - 512*1024*1024*1024ul);
 
 	size_t cnt = 0;
 	while(curr_prdt_offset < 248 && cnt < len) {
@@ -37,11 +41,11 @@ void eff_command::setup_linear_prdt(x64::phaddr start, size_t len) {
 		} else {*/
 			delta = (len - cnt) < 4096*1024 ? (len - cnt) : (4096 * 1024);
 		//}
-		comtab->prdt[curr_prdt_offset].loc  = start + cnt;
+		comtab_eff->prdt[curr_prdt_offset].loc  = start + cnt;
 	//	printf("PRD base address %p\n", start+cnt);
-		comtab->prdt[curr_prdt_offset].rsv1 = 0;
-		comtab->prdt[curr_prdt_offset].dbc  = delta - 1;
-		comtab->prdt[curr_prdt_offset].ie   = 0;
+		comtab_eff->prdt[curr_prdt_offset].rsv1 = 0;
+		comtab_eff->prdt[curr_prdt_offset].dbc  = delta - 1;
+		comtab_eff->prdt[curr_prdt_offset].ie   = 0;
 
 		cnt += delta;
 		curr_prdt_offset++;
@@ -54,10 +58,13 @@ void eff_command::setup_linear_prdt(x64::phaddr start, size_t len) {
 }
 
 void eff_command::setup_header_fis(volatile command_header* there, const void* fis, size_t fis_s) {
-	head = there;
+	head = (volatile command_header*)((uintptr_t)(there) - 512*1024*1024*1024ul);
 	if(!head) {throw einval();}
 	memset(head, 0, sizeof(command_header));
-	memcpy(&comtab->cfis[0], fis, fis_s);
+
+	 
+	auto comtab_eff = (decltype(comtab))((uintptr_t)(comtab) - 512*1024*1024*1024ul);
+	memcpy(&comtab_eff->cfis[0], fis, fis_s);
 	
 	head->cfl = fis_s / sizeof(uint32_t);
 	head->command_table = (x64::phaddr)(&comtab->cfis[0]);

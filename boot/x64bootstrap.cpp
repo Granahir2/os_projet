@@ -107,6 +107,12 @@ void ready_paging(uint64_t kernel_zero) {
 	page_directory_table_highhalf.dir0 = make_linear_large_page_directory(kernel_zero);
 	page_directory_table_highhalf.dir1 = make_linear_large_page_directory(kernel_zero + 0x40000000);
 
+
+	level3_page_table_highhalf.entry[0] = (uint64_t)(&page_directory_table.dir0) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
+	level3_page_table_highhalf.entry[1] = (uint64_t)(&page_directory_table.dir1) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
+	level3_page_table_highhalf.entry[2] = (uint64_t)(&page_directory_table.dir2) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
+	level3_page_table_highhalf.entry[3] = (uint64_t)(&page_directory_table.dir3) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
+
 	level3_page_table_highhalf.entry[510] = (uint64_t)(&page_directory_table_highhalf.dir0) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;  
 	level3_page_table_highhalf.entry[511] = (uint64_t)(&page_directory_table_highhalf.dir1) | 0b11 | x64::hl_paging_entry::OS_CRAWLABLE;
 

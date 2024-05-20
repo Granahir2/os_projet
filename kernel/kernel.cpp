@@ -28,8 +28,10 @@
 #include "drivers/ahci/interface.hh"
 #include "drivers/pci/configspace.hh"
 
+#include "kernel/proc/scheduler_main.hh"
+
 extern "C" void abort() {
-	puts("Inrecoverable kernel panic !");
+	puts("Irrecoverable kernel panic !");
 	halt();
 }
 
@@ -55,17 +57,17 @@ void test_phmem_resolving(x64::linaddr l) {
 	} else {puts("RO");}
 }
 
-constexpr x64::segment_descriptor craft_code_segment() {
+constexpr x64::segment_descriptor craft_code_segment(unsigned dpl) {
 	x64::segment_descriptor retval;
-	retval.access = 0b10011011; // RX segment, accessible only to Ring 0 
+	retval.access = 0b10011011 | ((dpl & 0b11) << 5); // RX segment, accessible only to Ring 0 
 	retval.set_limit(0x0fffff);
 	retval.flags = 0b1010; // 64-bit mode page-granularity
 	return retval;
 };
 
-constexpr x64::segment_descriptor craft_data_segment() {
+constexpr x64::segment_descriptor craft_data_segment(unsigned dpl) {
 	x64::segment_descriptor retval;
-	retval.access = 0b10010011; // RW segment, accessible only to Ring 0
+	retval.access = 0b10010011 | ((dpl & 0b11) << 5); // RW segment, accessible only to Ring 0
 	retval.set_limit(0x0fffff);
 	retval.flags = 0b1100;
 	return retval;
@@ -74,18 +76,18 @@ constexpr x64::segment_descriptor craft_data_segment() {
 
 
 extern "C" {
-regstate registers;
 void saveregs_hook();
 void loadregs_hook();
 }
 
 extern "C" void print_regs() {
+	/*
 	for(int i = 0; i < 16; ++i) {
 		printf("REG[%d] = %lx\n", i, registers.gp_regs[i]);
 	}
 
 	printf("RIP = %lx RFLAGS = %lx\n", registers.rip, registers.flags);
-	printf("SS = %lx CS = %lx\n", registers.ss, registers.cs);
+	printf("SS = %lx CS = %lx\n", registers.ss, registers.cs);*/
 }
 
 
@@ -115,8 +117,13 @@ __attribute__((interrupt)) void NP_handler(void*) {
 	halt();
 	return;
 }
-__attribute__((interrupt)) void GP_handler(void*) {
-	puts("#GP");
+__attribute__((interrupt)) void GP_handler(interrupt_frame* ifr, size_t code) {
+	printf("#GP(%x)\n", (int)code);
+	printf("RIP : %lx\n", ifr->rip);
+	printf("CS : %x\n", (int)ifr->cs);
+	printf("RFLAGS : %lx\n", ifr->rflags);
+	printf("RSP : %lx\n", ifr->rsp);
+	printf("SS : %x\n", (int)ifr->ss);
 	halt();
 	return;
 }
@@ -133,18 +140,10 @@ __attribute__((interrupt)) void APIC_timer(void*) {
 	return;
 }
 
-struct __attribute__((packed)) _gdt {
-	x64::segment_descriptor null_entry;
-	x64::segment_descriptor code_segment;
-	x64::segment_descriptor data_segment;
-	x64::system_segment_descriptor tss_desc;
-};
-
 _gdt* pgdt;
 x64::TSS* ptss;
 interrupt_manager* pimngr;
 serial::portdriver* ser0_drv;
-
 
 extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, uint64_t kernel_zero)  {
 	x64::enable_sse();
@@ -154,37 +153,39 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, u
 	static x64::TSS tss;
 
 	pgdt = &gdt;
+	ptss = &tss;
 
 	gdt.tss_desc.inner.access = 0x89; // 64 bit present available TSS
 	gdt.tss_desc.inner.flags = 0;
 	gdt.tss_desc.set_base((x64::linaddr) (&tss));
 	gdt.tss_desc.set_limit(0x67);
 
-	gdt.code_segment = craft_code_segment();
-	gdt.data_segment = craft_data_segment();
+	gdt.code_segment = craft_code_segment(0);
+	gdt.data_segment = craft_data_segment(0);
+	gdt.code_segment_ring3 = craft_code_segment(3);
+	gdt.data_segment_ring3 = craft_data_segment(3);
 	x64::gdt_descriptor desc = {sizeof(gdt) - 1, (x64::linaddr)(&gdt)}; 
 
 	x64::lgdt((uint64_t)(&desc));
 	x64::reload_descriptors();
-	x64::reload_tss(0x18);
+	x64::reload_tss((intptr_t)(&gdt.tss_desc) - (intptr_t)(&gdt));
 
 	//uint64_t kernel_zero = 0;
 	setup_heap(mmap, kernel_zero);
 	mem::default_pages_init(kernel_zero);
 
-
+	
 	ser0_drv = new serial::portdriver(0x3f8); // Stable stdout
 	smallptr<filehandler> fh = ser0_drv->get_file(WRONLY);
 	stdout = fh.ptr;
 	fh.ptr = nullptr;	
 
-	Display().clear();
-
 	static interrupt_manager imngr;
 	pimngr = &imngr;
 	
 	tss.rsp[0] = istack; // For now, everything goes in istack
-	for(int i = 1; i < 8; ++i) {tss.ist[i] = istack;}
+	tss.ist[1] = istack;
+	for(int i = 2; i < 8; ++i) {tss.ist[i] = istack+8096;}
 
 	printf("Local APIC base: %p\n", imngr.apic_base());
 	imngr.register_gate(0, 1, (uint64_t)(&DE_handler));
@@ -194,10 +195,10 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, u
 	imngr.register_gate(0xd, 1, (uint64_t)(&GP_handler));
 	imngr.register_gate(0x8, 1, (uint64_t)(&DF_handler));
 
-	imngr.register_gate(21, 1, (uint64_t)(&saveregs_hook));
+	imngr.register_gate(32, 2, (uint64_t)(&saveregs_hook), 3); // Scheduler interrupt
+	imngr.register_gate(33, 3, (uint64_t)(&syscall_hook), 3); // Syscall interrupt
+
 	x64::linaddr req_isr[1] = {(x64::linaddr)(&APIC_timer)};
-	
-	uint8_t vector = imngr.register_interrupt_block(1, req_isr);	
 	imngr.enable();
 
 	printf("kernel_zero was %p\n", kernel_zero);
@@ -255,6 +256,8 @@ extern "C" void kernel_main() {
 	rootfs::rootfs filesystem;
 	devfs  dev_fsys;
 	dev_fsys.attach_serial(smallptr<serial::portdriver>(ser0_drv));
+	auto td = vga::text_driver();
+	td.clear();
 	dev_fsys.attach_tty(smallptr<vga::text_driver>(new vga::text_driver()));
 	filesystem.mnts[0].fsys = &dev_fsys;
 	filesystem.mnts[0].mountpath = std::move(string("/dev"));
@@ -462,15 +465,14 @@ extern "C" void kernel_main() {
     }
     puts("File system : TEST 4 PASSED");
 
+	smallptr<filehandler> objfile = fat_it->open_file("test.elf", RW);
+	proc process(objfile.ptr, stdout);	
+	printf("Boup \n");
+	toload = &process;
+	
 	static int i = 0;
-
-	asm("int $21"); // "setjmp"
+	asm("int $32"); // "setjmp"
 	printf("Hello !\n");
-	if(i++) {
-		throw underflow_error("Out of cake.");
-	} else {
-		loadregs_hook(); // "longjmp"
-	}
 	puts("Got cake ?!");
 	halt();
 }

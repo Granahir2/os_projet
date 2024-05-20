@@ -1,10 +1,7 @@
 #pragma once
-
-/*
-Global pointer to currently running process -- used
-so that the syscall interface can update it appropriately.
-*/
-//static proc* currproc = nullptr;
+#include <cstdint>
+#include "x86/memory.hh"
+#include "kernel/fs/fs.hh"
 
 /*
 Naïve abstraction of a process at the lowest level :
@@ -19,29 +16,27 @@ struct alignas(64) __attribute__((packed)) regstate {
 	uint64_t rip;
 	uint64_t cs;
 	uint64_t ss;
+	
+	x64::phaddr cr3;
 };
 
-class proc {};
+struct flist {
+	filehandler* pl;
+	flist* next = nullptr;
+};
 
-/*
 class proc {
 public:
-	proc();
-	bool exec(); // returns false if termination is requested.
-	size_t getpid();
-private:
-	static size_t curr_PID; // Used for PID generation
+	proc(filehandler* loadfrom, filehandler* stdo = nullptr, filehandler* stdi = nullptr); // loads an ELF executable
+	void allocate_buffers(x64::phaddr* table, size_t howmany);
 
-	// Input buffers
-	size_t argc;
-	void** argv; // Everything is page-sized ?
-	
-	// Output buffers
-	size_t outc;
-	void** outv;
+	regstate context;
+	uint8_t kernel_stack[4096];
 
-	size_t pid;
-	regstate ring3_state;
-	regstate ring0_state;
-	bool is_in_syscall;
-};*/
+	flist* open_files;
+		
+	int bufnumber = 0; // Buffers are shared memory
+		
+};
+
+extern proc* toload;

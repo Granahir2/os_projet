@@ -1,12 +1,12 @@
 #include "mem/phmem_allocator.hh"
 #include "mem/phmem_manager.hh"
-#include "mem/vmem_allocator.hh"
 #include "misc/memory_map.hh"
+#include "kernel.hh"
 #include <new>
+
 mem::ph_tree_allocator<10>* palloc;
 mem::VirtualMemoryAllocator<18>* pkvmem_alloc;
 mem::phmem_manager* pphmem_man;
-
 
 unsigned long long min(unsigned long long a, unsigned long long b) {
 	if( a < b) {return a;} else {return b;}

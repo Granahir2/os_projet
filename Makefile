@@ -47,10 +47,10 @@ test: os.iso fattest.raw
 -device ahci,id=ahci \
 -device ide-hd,drive=disk,bus=ahci.0 -boot order=dc | tee log.txt
 debug: os.iso fattest.raw
-	qemu-system-x86_64 -cdrom os.iso -monitor stdio -no-shutdown -no-reboot -d int \
+	qemu-system-x86_64 -cdrom os.iso -s -S -monitor stdio -no-shutdown -no-reboot -d int \
 -drive id=disk,file=fattest.raw,if=none,format=raw \
 -device ahci,id=ahci \
--device ide-hd,drive=disk,bus=ahci.0 -boot order=dc | tee log.txt
+-device ide-hd,drive=disk,bus=ahci.0 -boot order=dc 2>&1 | tee log.txt
 clean:
 	$(RM) *.o *.bin *.iso log.txt
 	$(RM) -r isodir
@@ -61,9 +61,9 @@ clean:
 	cd drivers && $(MAKE) clean
 
 makefat:
-	- mkfs.fat -F 16 -C fattest.raw 65536
+	- mkfs.fat -F 16 -C fattest.raw 32768
 	- mkdir -p fatbuild
 	sudo mount -o loop fattest.raw fatbuild
 	sudo cp -r fatimage fatbuild
 	sudo umount fatbuild
-	rm -r fatbuild
+	- sudo rm -r fatbuild

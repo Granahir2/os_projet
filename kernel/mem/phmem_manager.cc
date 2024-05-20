@@ -58,10 +58,10 @@ if constexpr (lv == 1) {
 
 	callback_dir(&table->entry[start_index]);
 	if(start_index == end_index) {
-		crawl_tables<lv-1>(start, end, (hl_page_table*)(table->entry[start_index].content & address_mask), callback_dir, callback_page, iskernel);
+		crawl_tables<lv-1>(start, end, (hl_page_table*)((table->entry[start_index].content & address_mask) - 512*1024*1024*1024ul), callback_dir, callback_page, iskernel);
 		return;
 	} else {
-		crawl_tables<lv-1>(start, to_the_end, (hl_page_table*)(table->entry[start_index].content & address_mask), callback_dir, callback_page, iskernel);
+		crawl_tables<lv-1>(start, to_the_end, (hl_page_table*)((table->entry[start_index].content & address_mask) - 512*1024*1024*1024ul), callback_dir, callback_page, iskernel);
 	}
 
 	for(int i = start_index + 1; i < end_index; ++i) {
@@ -78,7 +78,7 @@ if constexpr (lv == 1) {
 			table->entry[i].content &= ~hl_paging_entry::PS;
 		}
 		callback_dir(&table->entry[i]); 
-		crawl_tables<lv-1>(from_the_beginning, to_the_end, (hl_page_table*)(table->entry[i].content & address_mask), callback_dir, callback_page, iskernel);
+		crawl_tables<lv-1>(from_the_beginning, to_the_end, (hl_page_table*)((table->entry[i].content & address_mask) - 512*1024*1024*1024ul), callback_dir, callback_page, iskernel);
 	}
 
 	if(!(table->entry[end_index].content & hl_paging_entry::OS_CRAWLABLE)) {
@@ -95,7 +95,7 @@ if constexpr (lv == 1) {
 	}
 
 	callback_dir(&table->entry[end_index]);
-	crawl_tables<lv-1>(from_the_beginning, end, (hl_page_table*)(table->entry[end_index].content & address_mask), callback_dir, callback_page,iskernel);
+	crawl_tables<lv-1>(from_the_beginning, end, (hl_page_table*)((table->entry[end_index].content & address_mask) - 512*1024*1024*1024ul), callback_dir, callback_page,iskernel);
 }
 }
 
@@ -103,7 +103,7 @@ if constexpr (lv == 1) {
 
 phmem_manager::phmem_manager(uint64_t sz) : mem_size(sz) {}
 
-bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags) {	
+bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags, x64::phaddr eff_cr3) {	
 	auto start = where;
 	auto end = where - 1 + size;
 	flags &= 0xfff;
@@ -111,8 +111,7 @@ bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags)
 	if((int64_t)where <= -(1ll << 48) || (int64_t)(where) >= (1ll >> 48)) {
 		return false;
 	}
-	bool iskernel = ((int64_t)where < 0);
-
+	bool iskernel = ((int64_t)where < 0) && ((int64_t)where >= -2*1024*1024*1024);
 	// Crawl through the page tables, mapping pages
 	// We *assume* physical memory is id-mapped.
 	
@@ -122,13 +121,18 @@ bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags)
 	// PML4 (512 PML3)
 
 	struct {
-		void operator()(hl_paging_entry* hl_entry) {hl_entry->content |=  0b11;};
+		void operator()(hl_paging_entry* hl_entry) {hl_entry->content |=  0b11 | f;};
+		uint32_t f;
 	} callback_dir;
+	callback_dir.f = flags;
 	struct {
-		void operator()(pte* pt_entry) {pt_entry->content = (get_phpage() & address_mask) | 0b11;};
+		void operator()(pte* pt_entry) {pt_entry->content = (get_phpage() & address_mask) | 0b11 | f;};
+		uint32_t f;
 	} callback_page;
+	callback_page.f = flags;
 
-	auto cr3 = (hl_page_table*)(x64::get_cr3());
+	auto cr3 = eff_cr3 ? (hl_page_table*)(eff_cr3 - 512*1024*1024*1024ul)
+		: (hl_page_table*)(x64::get_cr3() - 512*1024*1024*1024ul);
 	crawl_tables<4>(start,end,cr3,callback_dir,callback_page,iskernel);
 	return true;
 }
@@ -137,7 +141,7 @@ void phmem_manager::unback_vmem(x64::linaddr where, uint64_t size, [[maybe_unuse
 	auto start = where;
 	auto end = where - 1 + size;
 	if((int64_t)where <= -(1ll << 48) || (int64_t)(where) >= (1ll >> 48)) {return;}
-	bool iskernel = ((int64_t)where < 0);
+	bool iskernel = ((int64_t)where < 0) && ((int64_t)where >= -2*1024*1024*1024);
 	struct {
 		void operator()(hl_paging_entry*) {};
 	} callback_dir;
@@ -147,7 +151,7 @@ void phmem_manager::unback_vmem(x64::linaddr where, uint64_t size, [[maybe_unuse
 			release_phpage(pt_entry->content & address_mask);};
 	} callback_page;
 
-	auto cr3 = (hl_page_table*)(x64::get_cr3());
+	auto cr3 = (hl_page_table*)(x64::get_cr3() - 512*1024*1024*1024ul);
 	crawl_tables<4>(start,end,cr3,callback_dir,callback_page,iskernel);
 }
 

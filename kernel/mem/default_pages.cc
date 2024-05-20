@@ -20,7 +20,6 @@ constexpr struct {
 	page_directory dir3 = make_linear_large_page_directory(0xC0000000);
 } idmap_low_pds;
 
-
 struct {
 	page_directory dir0 = make_linear_large_page_directory(0);
 	page_directory dir1 = make_linear_large_page_directory(0x40000000);
@@ -33,18 +32,28 @@ pml4 toplevel;
 
 
 void default_pages_init(uint64_t kernel_zero) {
+	/* Create 2 windows into physical memory : 0 - 4G and -512G -- -508G */
+
+	
 	lower_pml3.entry[0].content = resolve_to_phmem((linaddr)(&idmap_low_pds.dir0)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
 	lower_pml3.entry[1].content = resolve_to_phmem((linaddr)(&idmap_low_pds.dir1)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
 	lower_pml3.entry[2].content = resolve_to_phmem((linaddr)(&idmap_low_pds.dir2)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
 	lower_pml3.entry[3].content = resolve_to_phmem((linaddr)(&idmap_low_pds.dir3)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
+	
 
 	higherhalf_pds.dir0 = make_linear_large_page_directory(kernel_zero);
-	higherhalf_pds.dir1 = make_linear_large_page_directory(kernel_zero + 0x40000000);
+	higherhalf_pds.dir1 = make_linear_large_page_directory(kernel_zero + 0x40000000);	
+
+
+	highhalf_pml3.entry[0].content = resolve_to_phmem((linaddr)(&idmap_low_pds.dir0)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
+	highhalf_pml3.entry[1].content = resolve_to_phmem((linaddr)(&idmap_low_pds.dir1)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
+	highhalf_pml3.entry[2].content = resolve_to_phmem((linaddr)(&idmap_low_pds.dir2)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
+	highhalf_pml3.entry[3].content = resolve_to_phmem((linaddr)(&idmap_low_pds.dir3)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
 	
 	highhalf_pml3.entry[510].content = resolve_to_phmem((linaddr)(&higherhalf_pds.dir0)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;  
 	highhalf_pml3.entry[511].content = resolve_to_phmem((linaddr)(&higherhalf_pds.dir1)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
 
-	toplevel.entry[0].content = resolve_to_phmem((linaddr)(&lower_pml3)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
+	//toplevel.entry[0].content = resolve_to_phmem((linaddr)(&lower_pml3)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
 	toplevel.entry[511].content = resolve_to_phmem((linaddr)(&highhalf_pml3)).resolved | 0b11| hl_paging_entry::OS_CRAWLABLE;
 
 	load_cr3(resolve_to_phmem((linaddr)(&toplevel)).resolved);

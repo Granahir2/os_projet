@@ -20,7 +20,7 @@ driver::driver(filehandler* cf) {
 	if(abar & 0xfff) {
 		throw runtime_error("[ahci] ABAR structure doesn't follow spec");
 	}
-	hmem = (HBA_memory*)((uintptr_t)(abar));
+	hmem = (HBA_memory*)((uintptr_t)(abar) - 512*1024*1024*1024ul);
 	printf("[ahci] Found ABAR at : %p\n", hmem);
 
 
