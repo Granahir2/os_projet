@@ -65,7 +65,7 @@ public:
     void remove_edge(uint16_t pid1, uint16_t pid2);
     void exec_report(bool graceful_yield);
 
-    hl_sched(uint64_t ini_weight = 1'000'00):
+    hl_sched(uint64_t ini_weight = 1'000'00, uint16_t number_of_cycles_per_update = 100):
                 pid_to_node_pointer(), 
                 visited(), 
                 ready_queue_head(nullptr), 
@@ -75,7 +75,8 @@ public:
                 weights_are_up_to_date(true),
                 waiting_for_report(false),
                 cycle_counter(0),
-                initial_weight(ini_weight) {}
+                initial_weight(ini_weight), 
+                number_of_cycles_per_update(number_of_cycles_per_update) {}
 private:
     map<uint16_t, graphnode*> pid_to_node_pointer;
     map<uint16_t, bool> visited;
@@ -87,6 +88,7 @@ private:
     graphnode* current_node;
     uint16_t cycle_counter;
     uint64_t initial_weight;
+    uint16_t number_of_cycles_per_update;
 
     bool graph_is_up_to_date;
     bool weights_are_up_to_date;

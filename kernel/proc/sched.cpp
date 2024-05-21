@@ -82,9 +82,11 @@ uint16_t isqrt(uint8_t x) {
     return res;
 }
 
-void hl_sched::update_weights() {    
-
-    if (weights_are_up_to_date) return;
+void hl_sched::update_weights() {
+    if (weights_are_up_to_date) { 
+        cycle_counter = 0;
+        return;
+    }
     if (ready_queue_head == nullptr) 
         throw runtime_error("Ready queue is empty");
     uint64_t total_sqrt_balance = 0;
@@ -180,9 +182,10 @@ command hl_sched::next() {
             visited.clear();
             in_recursion_stack.clear();
             graph_is_up_to_date = true;
+            update_weights();
         }
         // Update the weights if necessary
-        update_weights();
+        if (cycle_counter >= number_of_cycles_per_update) update_weights();
 
         ready_queue_iterator = ready_queue_head;
     }
