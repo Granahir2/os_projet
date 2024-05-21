@@ -130,7 +130,6 @@ void hl_sched::update_weights() {
     // Calculate the time for each process, proportional to its weight
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
-        printf("Weight: %d versus total weight: %d\n", node->weight, total_weight);
         node->how_long = node->weight * (1ll<<32) / total_weight;
         total_time += node->how_long;
     }
