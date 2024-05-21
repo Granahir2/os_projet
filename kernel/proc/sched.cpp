@@ -105,22 +105,21 @@ void hl_sched::update_weights() {
     // When the total balance is 0, there is no information about the processes
     // In fact, they should be running perfectly, and we don't need to do any update
     if (total_sqrt_balance != 0) {
+        graphnode* a_node_with_non_fixed_weight = nullptr;
         for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
             graphnode* node = it->node;
             if (!node->weight_fixed) {
                 node->weight = total_non_fixed_weight * node->balance / total_sqrt_balance;
                 total_assigned_weight += node->weight;
+                a_node_with_non_fixed_weight = node;
             }
             total_weight += node->weight;
         }
         if (total_assigned_weight < total_non_fixed_weight) {
-            for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
-                graphnode* node = it->node;
-                if (!node->weight_fixed) {
-                    node->weight += total_non_fixed_weight - total_assigned_weight;
-                    break;
-                }
+            if (a_node_with_non_fixed_weight == nullptr) {
+                throw runtime_error("No node with non-fixed weight found");
             }
+            a_node_with_non_fixed_weight->weight += total_non_fixed_weight - total_assigned_weight;
         }
     }
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
