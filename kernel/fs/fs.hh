@@ -50,6 +50,8 @@ public:
 	virtual smallptr<filehandler> open_file([[maybe_unused]] const char* str,[[maybe_unused]] int mode) {return nullptr;}
 	virtual string readlink([[maybe_unused]] const char* str) {return string();};
 
+	virtual dirlist_token list() {return dirlist_token();}
+
 	dir_iterator() = default;
 };
 

@@ -89,5 +89,18 @@ public:
 		}
 	}
 
+	dirlist_token list() {
+		if constexpr(Listable<T>) {
+			return do_list();
+		} else {
+			throw einval("Filesystem does not support listing");
+		}
+	}
+
 	T raw_it;
+private:
+	dirlist_token do_list() requires requires { {raw_it.list()} -> std::same_as<dirlist_token>; } {
+		return raw_it.list();
+	}
+
 };

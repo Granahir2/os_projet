@@ -4,6 +4,11 @@
 using time_t = size_t;
 using off_t = long int;
 
+struct dirlist_token {
+	string name;
+	bool is_directory;
+	smallptr<dirlist_token> next;
+};
 
 typedef uint16_t mode_t;
 enum mode : mode_t {NONE = 0, RDONLY = 1, WRONLY = 2, RW = 3};
@@ -26,6 +31,11 @@ struct statbuf { // Result from stat
 template<typename T>
 concept Seekable = requires (T x) {
 	{x.seek(off_t(), seekref::SET)} -> std::same_as<off_t>;
+};
+
+template<typename T>
+concept Listable = requires (T x) {
+	{x.list()} -> std::same_as<dirlist_token>;
 };
 
 template<typename T>
