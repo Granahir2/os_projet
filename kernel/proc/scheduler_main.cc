@@ -7,7 +7,8 @@
 
 hl_sched* scheduler;
 
-proc* init;
+proc* init[3];
+
 proc* current_process;
 
 extern "C" {
@@ -19,18 +20,23 @@ extern "C" {
 void scheduler_main() {
 	static bool is_launched = false;
 
+	puts("Entering scheduler");
+
 	if(!is_launched) {
 		scheduler = new hl_sched();
-		scheduler->add_process(init);
-		current_process = init;
+		scheduler->add_process(init[0]);
+		//scheduler->add_process(init[1]);
+		//scheduler->add_process(init[2]);
+		current_process = init[0];
 		is_launched = true;
 	} else {
 		current_process->context = registers;
+		scheduler->exec_report(true);
 	}
 
 	try {
 	auto com = scheduler->next();
-	printf("com : pid = %lu, how_long = %lx, wait_after = %d\n", com.to_exec, com.how_long, com.spin_after);
+	printf("com : pid = %lu, how_long = %lx, wait_after = %d\n", com.to_exec->get_pid(), com.how_long, com.spin_after);
 	registers = com.to_exec->context;
 	ptss->ist[3] = (intptr_t)(&com.to_exec->kernel_stack[0]);
 	} catch(std::exception& e) {

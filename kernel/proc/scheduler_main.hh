@@ -11,5 +11,5 @@ void syscall_main(int callnum, void* ptr, long arg1, long arg2, long arg3);
 
 
 extern hl_sched* scheduler;
-extern proc* init;
+extern proc* init[3];
 extern proc* current_process;

@@ -470,7 +470,14 @@ extern "C" void kernel_main() {
 
 	smallptr<filehandler> objfile = fat_it->open_file("test.elf", RW);
 	proc process(objfile.ptr, stdout);	
-	init = &process;
+	init[0] = &process;
+
+	objfile.ptr->seek(0, SET);
+	proc process2(objfile.ptr, stdout);	
+	init[1] = &process2;
+	objfile.ptr->seek(0, SET);
+	proc process3(objfile.ptr, stdout);	
+	init[2] = &process3;
 	
 	static int i = 0;
 	asm("int $32"); // "setjmp"
