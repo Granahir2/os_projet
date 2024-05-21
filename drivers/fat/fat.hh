@@ -85,6 +85,7 @@ public:
     size_t depth();
     string operator[](size_t index);
     smallptr<file> open_file(const char* file_name, int mode, size_t cluster_number = SIZE_MAX);
+    dirlist_token list(size_t current_cluster = SIZE_MAX, dirlist_token* filename_list_head = nullptr, dirlist_token* filename_list_tail = nullptr);
 
 private:
     FAT_dir_entry_with_full_name stack[32];

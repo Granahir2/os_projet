@@ -445,4 +445,219 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
     }
 }
 
+dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* filename_list_head, dirlist_token* filename_list_tail)
+{
+    if(filename_list_head == nullptr) filename_list_head = new dirlist_token();
+    if(filename_list_head == nullptr) filename_list_tail = new dirlist_token();
+
+    // Traverse through directory to find the file
+    FAT_dir_entry DirEntry;
+    FAT_Long_File_Name_entry LFNEntry;
+    uint8_t Attribute;
+    bool there_is_long_name = false;
+
+    // Buffer to contain long name
+    char found_directory_Name [256];
+    found_directory_Name[0] = '\0';
+    int cnt = 0;
+    int number_of_LFN_entries = -1;
+    int current_checksum = -1;
+    
+    if (fat_fs->FATType == FAT32 || stack_pointer > 0) // If it is not root directory or FAT32
+    {
+        if (current_cluster == SIZE_MAX)
+            current_cluster = this->first_cluster_of_current_directory;
+
+        size_t start_address = fat_fs->cluster_number_to_address(current_cluster);
+        fat_fs->fh->seek(start_address, SET);
+        for (uint16_t i = 0; i < fat_fs->number_of_entries_per_cluster; i++)
+        {
+            // check attribute byte
+            fat_fs->fh->seek(11, CUR);
+            fat_fs->fh->read(&Attribute, 1);
+            fat_fs->fh->seek(-12, CUR);
+
+            // check if it is a directory or a LFN
+            if ((number_of_LFN_entries > 0 && Attribute != ATTR_LONG_NAME) || 
+                (Attribute == ATTR_LONG_NAME && number_of_LFN_entries == 0))
+                throw runtime_error("Corrupted directory entry");
+            else if (Attribute == ATTR_LONG_NAME)
+            {
+                // LFN
+
+                fat_fs->fh->read(&LFNEntry, 32);
+                // Sanity check
+                if(number_of_LFN_entries == -1) // begin of LFN
+                {
+                    if (!(LFNEntry.LDIR_Ord & LAST_LONG_ENTRY))
+                        throw runtime_error("Corrupted LFN entry: this is supposed to be the last entry");
+                    number_of_LFN_entries = LFNEntry.LDIR_Ord & 0x1F, 
+                    current_checksum = LFNEntry.LDIR_Chksum;
+                    cnt = (number_of_LFN_entries-1) * 13;
+                    there_is_long_name = true;
+                }
+                else if (number_of_LFN_entries != LFNEntry.LDIR_Ord)
+                    throw runtime_error("Corrupted LFN entry: sequence number mismatch");
+                else if (current_checksum != LFNEntry.LDIR_Chksum)
+                    throw runtime_error("Corrupted LFN entry: checksum mismatch");
+
+                // Add the name to the buffer
+                cnt = (number_of_LFN_entries-1) * 13;
+                for (size_t j = 0; j < 5; j++)
+                {
+                    if (cnt >= 256) throw runtime_error("Corrupted LFN entry: name too long");
+                    if (LFNEntry.LDIR_Name1[j] == 0xFFFF) break;
+                    found_directory_Name[cnt++] = LFNEntry.LDIR_Name1[j];
+                }
+                for (size_t j = 0; j < 6; j++)
+                {
+                    if (cnt >= 256) throw runtime_error("Corrupted LFN entry: name too long");
+                    if (LFNEntry.LDIR_Name2[j] == 0xFFFF) break;
+                    found_directory_Name[cnt++] = LFNEntry.LDIR_Name2[j];
+                }
+                for (size_t j = 0; j < 2; j++)
+                {
+                    if (cnt >= 256) throw runtime_error("Corrupted LFN entry: name too long");
+                    if (LFNEntry.LDIR_Name3[j] == 0xFFFF) break;
+                    found_directory_Name[cnt++] = LFNEntry.LDIR_Name3[j];
+                }
+                number_of_LFN_entries--;
+            }
+            else
+            {
+                // Directory
+                // Reset LFN variables
+                number_of_LFN_entries = -1;
+                cnt = 0;
+                
+                fat_fs->fh->read(&DirEntry, 32);
+
+                // Calculate checksum
+                uint8_t checksum = 0;
+                for (size_t j = 0; j < 11; j++)
+                    checksum = ((checksum & 1) ? 0x80 : 0) + (checksum >> 1) + DirEntry.DIR_Name[j];
+                if (there_is_long_name && checksum != current_checksum)
+                    throw runtime_error("Corrupted directory entry: checksum mismatch");
+                there_is_long_name = false;
+
+                // Add new file name to the list
+                dirlist_token* new_token = new dirlist_token;
+                new_token->name = basic_string(found_directory_Name);
+                if (filename_list_head == nullptr)
+                {
+                    filename_list_head = new_token;
+                    filename_list_tail = new_token;
+                }
+                else
+                {
+                    filename_list_tail->next.ptr = new_token;
+                    filename_list_tail = new_token;
+                }
+            }
+        }
+
+        // Check if there is any more cluster
+        size_t next_cluster = fat_fs->find_fat_entry(current_cluster);
+        // If there is none, we throw error that file is not found
+        if (next_cluster >= fat_fs->LAST_CLUSTER || next_cluster == 0)
+        {
+            dirlist_token head = {filename_list_head->name, filename_list_head->is_directory, filename_list_head->next.ptr};
+            filename_list_head->next.ptr = nullptr;
+            delete filename_list_head;
+            return head;
+        }
+        // Else, we set the current cluster to the next cluster, and repeat
+        else 
+           return list(next_cluster, filename_list_head, filename_list_tail);
+    }
+    else 
+    {
+        fat_fs->fh->seek(fat_fs->root_directory_begin_address_for_FAT12_and_FAT16, SET);
+
+        for (uint16_t i = 0; i < fat_fs->BPB_RootEntCnt; i++)
+        {
+            // check attribute byte
+            fat_fs->fh->seek(11, CUR);
+            fat_fs->fh->read(&Attribute, 1);
+            fat_fs->fh->seek(-12, CUR);
+
+            // check if it is a directory or a LFN
+            if ((number_of_LFN_entries > 0 && Attribute != ATTR_LONG_NAME) || 
+                (Attribute == ATTR_LONG_NAME && number_of_LFN_entries == 0))
+                throw runtime_error("Corrupted directory entry");
+            else if (Attribute == ATTR_LONG_NAME)
+            {
+                // LFN
+
+                fat_fs->fh->read(&LFNEntry, 32);
+                // Sanity check
+                if(number_of_LFN_entries == -1) // begin of LFN
+                {
+                    if (!(LFNEntry.LDIR_Ord & LAST_LONG_ENTRY))
+                        throw runtime_error("Corrupted LFN entry: this is supposed to be the last entry");
+                    number_of_LFN_entries = LFNEntry.LDIR_Ord & 0x1F, 
+                    current_checksum = LFNEntry.LDIR_Chksum;
+                }
+                else if (number_of_LFN_entries != LFNEntry.LDIR_Ord)
+                    throw runtime_error("Corrupted LFN entry: sequence number mismatch");
+                else if (current_checksum != LFNEntry.LDIR_Chksum)
+                    throw runtime_error("Corrupted LFN entry: checksum mismatch");
+
+                // Add the name to the buffer
+                cnt = (number_of_LFN_entries-1) * 13;
+                for (size_t j = 0; j < 5; j++)
+                {
+                    if (cnt >= 256) throw runtime_error("Corrupted LFN entry: name too long");
+                    if (LFNEntry.LDIR_Name1[j] == 0xFFFF) break;
+                    found_directory_Name[cnt++] = LFNEntry.LDIR_Name1[j];
+                }
+                for (size_t j = 0; j < 6; j++)
+                {
+                    if (cnt >= 256) throw runtime_error("Corrupted LFN entry: name too long");
+                    if (LFNEntry.LDIR_Name2[j] == 0xFFFF) break;
+                    found_directory_Name[cnt++] = LFNEntry.LDIR_Name2[j];
+                }
+                for (size_t j = 0; j < 2; j++)
+                {
+                    if (cnt >= 256) throw runtime_error("Corrupted LFN entry: name too long");
+                    if (LFNEntry.LDIR_Name3[j] == 0xFFFF) break;
+                    found_directory_Name[cnt++] = LFNEntry.LDIR_Name3[j];
+                }
+                number_of_LFN_entries--;
+            }
+            else
+            {
+                // Directory
+                number_of_LFN_entries = -1;
+                fat_fs->fh->read(&DirEntry, 32);
+
+                // Calculate checksum
+                uint8_t checksum = 0;
+                for (size_t j = 0; j < 11; j++)
+                    checksum = ((checksum & 1) ? 0x80 : 0) + (checksum >> 1) + DirEntry.DIR_Name[j];
+                if (checksum != current_checksum)
+                    throw runtime_error("Corrupted directory entry: checksum mismatch");
+
+                // Add new file name to the list
+                dirlist_token* new_token = new dirlist_token;
+                new_token->name = basic_string(found_directory_Name);
+                if (filename_list_head == nullptr)
+                {
+                    filename_list_head = new_token;
+                    filename_list_tail = new_token;
+                }
+                else
+                {
+                    filename_list_tail->next.ptr = new_token;
+                    filename_list_tail = new_token;
+                }
+            }
+        }
+        dirlist_token head = {filename_list_head->name, filename_list_head->is_directory, filename_list_head->next.ptr};
+        filename_list_head->next.ptr = nullptr;
+        delete filename_list_head;
+        return head;
+    }
+}
+
 }
