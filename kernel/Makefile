@@ -1,14 +1,14 @@
-CXXFLAGS += -m64 -mno-red-zone -mcmodel=large -DKERNEL -I$(CURDIR)
+CXXFLAGS += -m64 -mno-red-zone -mgeneral-regs-only -mcmodel=large -DKERNEL -I$(CURDIR)
 ASFLAGS += -64
 
 KOBJECTS = kernel.o kmmap.o interrupts.o pci.o ../misc/display64.o ../x86/asm_stubs.o \
-mem/utils.o mem/phmem_manager.o mem/default_pages.o fs/rootfs.o fs/devfs.o proc/saveregs_hook.o proc/scheduler_main.o proc/proc.o
+mem/utils.o mem/phmem_manager.o mem/default_pages.o fs/rootfs.o fs/devfs.o proc/scheduling.o
 
 
 kernelfull.o: $(KOBJECTS)
 	$(CXX) -r -o kernelfull.o $(KOBJECTS)
-proc/proc.o: proc/proc.cc
-proc/scheduler_main.o: proc/scheduler_main.cc
+proc/scheduling.o: FORCE
+	cd proc && $(MAKE) scheduling.o
 proc/saveregs_hook.o: proc/saveregs_hook.s
 interrupts.o: interrupts.hh interrupts.cc
 kmmap.o: kmmap.cc kernel.hh #to complete

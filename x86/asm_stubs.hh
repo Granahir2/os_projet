@@ -22,4 +22,7 @@ uint64_t rdmsr(uint32_t msr);
 
 x64::phaddr get_cr3();
 void load_cr3(x64::phaddr);
+
+
+x64::linaddr get_cr2();
 }

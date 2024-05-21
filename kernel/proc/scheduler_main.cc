@@ -2,20 +2,41 @@
 #include "kstdlib/cstdio.hh"
 #include "mem/utils.hh"
 #include "kernel/kernel.hh"
+#include "sched.hh"
 
-proc* toload; // Very naïve, to test.
+
+hl_sched* scheduler;
+
+proc* init;
+proc* current_process;
+
 extern "C" {
 	regstate registers;
 }
 
-proc* current_process;
 
 extern "C" {
 void scheduler_main() {
-	//static proc* currproc = new proc(); // Dummy, really
-	//currproc->context = registers;
-	registers = toload->context;
-	ptss->ist[3] = (intptr_t)(&toload->kernel_stack[0]);
+	static bool is_launched = false;
+
+	if(!is_launched) {
+		scheduler = new hl_sched();
+		scheduler->add_process(init);
+		current_process = init;
+		is_launched = true;
+	} else {
+		current_process->context = registers;
+	}
+
+	try {
+	auto com = scheduler->next();
+	printf("com : pid = %lu, how_long = %lx, wait_after = %d\n", com.to_exec, com.how_long, com.spin_after);
+	registers = com.to_exec->context;
+	ptss->ist[3] = (intptr_t)(&com.to_exec->kernel_stack[0]);
+	} catch(std::exception& e) {
+		puts(e.what());
+		halt();
+	}
 }
 
 /*

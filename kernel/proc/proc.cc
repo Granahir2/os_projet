@@ -3,6 +3,8 @@
 #include "elf.hh"
 #include "x86/asm_stubs.hh"
 
+size_t proc::c_pid = 0; 
+
 proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
 	elf::file_header head;
 	loadfrom->read(&head, sizeof(head));
@@ -67,4 +69,8 @@ proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
 	context.gp_regs[5] = (uintptr_t)(stdo); // rdi
 	context.gp_regs[4] = (uintptr_t)(stdi); // rsi
 	context.rip = head.entrypoint;
-}; 
+
+	pid = c_pid++;	
+};
+
+size_t proc::get_pid() {return pid;}

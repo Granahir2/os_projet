@@ -133,6 +133,12 @@ x64::phaddr __attribute__((naked)) get_cr3() {
 	ret)foo");
 }
 
+x64::linaddr __attribute__((naked)) get_cr2() {
+	asm(R"foo(
+	mov %cr2, %rax
+	ret)foo");
+}
+
 void __attribute__((naked)) load_cr3(x64::phaddr) {
 	asm(R"foo(
 	mov %rdi, %cr3

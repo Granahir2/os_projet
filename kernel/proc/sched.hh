@@ -59,16 +59,16 @@ class hl_sched {
 public:
     command next();
     void update_weights();
-    void add_process(proc* p, uint64_t weight = initial_weight, bool weight_fixed = false);
+    void add_process(proc* p, uint64_t weight = -1, bool weight_fixed = false);
     void remove_process(proc* p);
     void add_edge(uint16_t pid1, uint16_t pid2);
     void remove_edge(uint16_t pid1, uint16_t pid2);
     void exec_report(bool graceful_yield);
 
-    hl_sched(uint64_t initial_weight = 1'000'000'000):
+    hl_sched(uint64_t ini_weight = 1'000'000'000):
                 pid_to_node_pointer(), 
-                rb_tree_root(pid_to_node_pointer.tree.root), 
                 visited(),
+                rb_tree_root(pid_to_node_pointer.tree.root), 
                 ready_queue_head(nullptr), 
                 ready_queue_tail(nullptr), 
                 ready_queue_iterator(nullptr), 
@@ -76,7 +76,7 @@ public:
                 weights_are_up_to_date(true),
                 waiting_for_report(false),
                 cycle_counter(0),
-                initial_weight(initial_weight) {}
+                initial_weight(ini_weight) {}
 private:
     map<uint16_t, graphnode*> pid_to_node_pointer;
     map<uint16_t, bool> visited;
@@ -99,5 +99,5 @@ private:
     void topological_sort();
     rb_node* rb_tree_root;
     void dfs(rb_node* n);
-    void hl_sched::dfs_over_forward_edges(rb_node* n);
+    void dfs_over_forward_edges(rb_node* n);
 };

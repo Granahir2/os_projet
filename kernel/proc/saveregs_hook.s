@@ -42,6 +42,7 @@ saveregs_hook: # Made to be called immediately from the scheduler gate ISR
 	mov %cr3, %rax
 	mov %rax, registers+672
 
+	sub $8, %rsp # Align the stack to a 16 byte boundary
 	mov %rsp, %rbp
 	cld
 	call scheduler_main
@@ -53,6 +54,7 @@ saveregs_hook: # Made to be called immediately from the scheduler gate ISR
 
 loadregs_hook:
 	cli
+	add $8, %rsp
 	fxrstor registers+128
 	mov %r15, (registers+120)
 	mov %r14, (registers+112)

@@ -102,8 +102,16 @@ __attribute__((interrupt)) void DE_handler(interrupt_frame* ifr) {
 	halt();
 	return;
 }
-__attribute__((interrupt)) void PF_handler(void*) {
-	puts("#PF");
+__attribute__((interrupt)) void PF_handler(interrupt_frame* ifr, size_t code) {
+	printf("#PF(%x)\n", (int)code);
+	printf("CR2 : %lx\n", x64::get_cr2());
+
+	printf("RIP : %lx\n", ifr->rip);
+	printf("CS : %lx\n", ifr->cs);
+	printf("RFLAGS : %lx\n", ifr->rflags);
+	printf("RSP : %lx\n", ifr->rsp);
+	printf("SS : %lx\n", ifr->ss);
+
 	halt();
 	return;
 }
@@ -205,11 +213,6 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, u
 
 }
 
-/*
-extern void* _binary_fattest_raw_start;
-extern void* _binary_fattest_raw_end;
-extern size_t _binary_fattest_raw_size;
-*/
 extern "C" void kernel_main() {	
 	
 	auto x = kmmap((void*)(-2*1024*1024*1024ull), 4096);
@@ -467,8 +470,7 @@ extern "C" void kernel_main() {
 
 	smallptr<filehandler> objfile = fat_it->open_file("test.elf", RW);
 	proc process(objfile.ptr, stdout);	
-	printf("Boup \n");
-	toload = &process;
+	init = &process;
 	
 	static int i = 0;
 	asm("int $32"); // "setjmp"

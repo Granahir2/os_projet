@@ -1,4 +1,3 @@
-#pragma once
 #include "sched.hh"
 #include "proc.hh"
 #include "kstdlib/new.hh"
@@ -13,9 +12,12 @@ graphnode_list::~graphnode_list() {
 }
 
 void hl_sched::add_process(proc* p, uint64_t weight, bool weight_fixed) {
+    if(weight == -1ull) {
+	weight = initial_weight;	
+    }
     graphnode* new_node = new graphnode(p, weight, weight_fixed);
     uint16_t pid = p->get_pid();
-    pid_to_node_pointer[p->pid] = new_node;
+    pid_to_node_pointer[pid] = new_node;
     
     graph_is_up_to_date = false;
     weights_are_up_to_date = false;
@@ -154,7 +156,7 @@ command hl_sched::next() {
             graph_is_up_to_date = true;
         }
         // Update the weights if necessary
-        update_weights();
+        //update_weights();
 
         ready_queue_iterator = ready_queue_head;
     }
