@@ -3,6 +3,7 @@
 #include "kstdlib/new.hh"
 #include "kstdlib/map.hh"
 #include "kstdlib/stdexcept.hh"
+#include "kstdlib/cstdio.hh"
 
 graphnode_list::~graphnode_list() {
     if (next != nullptr) {
@@ -13,7 +14,7 @@ graphnode_list::~graphnode_list() {
 
 void hl_sched::add_process(proc* p, uint64_t weight, bool weight_fixed) {
     if(weight == -1ull) {
-	weight = initial_weight;	
+	    weight = initial_weight;	
     }
     graphnode* new_node = new graphnode(p, weight, weight_fixed);
     uint16_t pid = p->get_pid();
@@ -21,6 +22,7 @@ void hl_sched::add_process(proc* p, uint64_t weight, bool weight_fixed) {
     
     graph_is_up_to_date = false;
     weights_are_up_to_date = false;
+    rb_tree_root = pid_to_node_pointer.tree.root;
 }
 
 void hl_sched::remove_process(proc* p) {
@@ -87,7 +89,7 @@ void hl_sched::update_weights() {
     uint64_t total_sqrt_balance = 0;
     uint64_t total_weight = 0;
     uint64_t total_time = 0;
-
+s
     // Magic algorithm
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
@@ -96,6 +98,10 @@ void hl_sched::update_weights() {
         node->balance = isqrt(node->balance);
         total_sqrt_balance += node->balance;
     }
+    // When the total balance is 0, there is no information about the processes
+    // In fact, they should be running perfectly, and we don't need to do any update
+    if (total_sqrt_balance == 0) return;
+    
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
         if (node->weight_fixed) continue;
@@ -103,12 +109,14 @@ void hl_sched::update_weights() {
         total_weight += node->weight;
         node->balance = 0;
     }
+    
     // Calculate the time for each process, proportional to its weight
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
         node->how_long = node->weight / total_weight * (1ll<<32);
         total_time += node->how_long;
     }
+    
     // If the total time is not 2^32, then we need to adjust the last process
     if (total_time != (1ll<<32)) {
         ready_queue_tail->node->how_long += (1ll<<32) - total_time;
@@ -118,6 +126,7 @@ void hl_sched::update_weights() {
 }
 
 void hl_sched::add_to_ready_queue_at_the_front(graphnode* node) {
+    printf("Adding process %d to the ready queue\n", node->process->get_pid());
     graphnode_list* new_node = new graphnode_list(node);
     if (ready_queue_head == nullptr) {
         ready_queue_head = new_node;
@@ -156,9 +165,12 @@ command hl_sched::next() {
             graph_is_up_to_date = true;
         }
         // Update the weights if necessary
-        //update_weights();
+        update_weights();
 
         ready_queue_iterator = ready_queue_head;
+    }
+    if (ready_queue_iterator == nullptr) {
+        throw runtime_error("Ready queue is empty");
     }
     graphnode* current_node = ready_queue_iterator->node;
     ready_queue_iterator = ready_queue_iterator->next;
@@ -179,9 +191,9 @@ command hl_sched::next() {
 void hl_sched::dfs(rb_node* n) {
     if (n == nullptr) return;
     uint16_t pid = n->value.key;
-    if (visited[pid]) return;
+    if (visited.contains(pid) && visited[pid]) return;
     visited[pid] = true;
-    if (in_recursion_stack[pid]) 
+    if (in_recursion_stack.contains(pid) && in_recursion_stack[pid]) 
         throw runtime_error("Cycle detected in the scheduler's graph of processes");
     in_recursion_stack[pid] = true;
     
@@ -200,9 +212,9 @@ void hl_sched::dfs(rb_node* n) {
 void hl_sched::dfs_over_forward_edges(rb_node* n) {
     if (n == nullptr) return;
     uint16_t pid = n->value.key;
-    if (visited[pid]) return;
+    if (visited.contains(pid) && visited[pid]) return;
     visited[pid] = true;
-    if (in_recursion_stack[pid]) 
+    if (in_recursion_stack.contains(pid) && in_recursion_stack[pid]) 
         throw runtime_error("Cycle detected in the scheduler's graph of processes");
     in_recursion_stack[pid] = true;
     dfs(n);

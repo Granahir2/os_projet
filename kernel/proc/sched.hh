@@ -67,8 +67,7 @@ public:
 
     hl_sched(uint64_t ini_weight = 1'000'000'000):
                 pid_to_node_pointer(), 
-                visited(),
-                rb_tree_root(pid_to_node_pointer.tree.root), 
+                visited(), 
                 ready_queue_head(nullptr), 
                 ready_queue_tail(nullptr), 
                 ready_queue_iterator(nullptr), 
