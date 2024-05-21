@@ -65,7 +65,7 @@ public:
     void remove_edge(uint16_t pid1, uint16_t pid2);
     void exec_report(bool graceful_yield);
 
-    hl_sched(uint64_t ini_weight = 1'000'000'000):
+    hl_sched(uint64_t ini_weight = 1'000'00):
                 pid_to_node_pointer(), 
                 visited(), 
                 ready_queue_head(nullptr), 

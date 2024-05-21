@@ -56,7 +56,7 @@ void hl_sched::exec_report(bool graceful_yield) {
         throw runtime_error("Not waiting for report");
     }
     if (graceful_yield & (!current_node->weight_fixed)) {
-        current_node->weight++;
+        current_node->balance++;
         weights_are_up_to_date = false;
     }
     waiting_for_report = false;
@@ -82,38 +82,57 @@ uint16_t isqrt(uint8_t x) {
     return res;
 }
 
-void hl_sched::update_weights() {
+void hl_sched::update_weights() {    
+
     if (weights_are_up_to_date) return;
     if (ready_queue_head == nullptr) 
         throw runtime_error("Ready queue is empty");
     uint64_t total_sqrt_balance = 0;
     uint64_t total_weight = 0;
+    uint64_t total_non_fixed_weight = 0;
+    uint64_t total_assigned_weight = 0;
     uint64_t total_time = 0;
 
-    // Magic algorithm
+    // Magical algorithm
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
         if (node->weight_fixed) continue;
         if (node->new_process) node->balance = cycle_counter >> 1, node->new_process = false;
         node->balance = isqrt(node->balance);
         total_sqrt_balance += node->balance;
+        total_non_fixed_weight += node->weight;
     }
     // When the total balance is 0, there is no information about the processes
     // In fact, they should be running perfectly, and we don't need to do any update
-    if (total_sqrt_balance == 0) return;
-    
+    if (total_sqrt_balance != 0) {
+        for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
+            graphnode* node = it->node;
+            if (!node->weight_fixed) {
+                node->weight = total_non_fixed_weight * node->balance / total_sqrt_balance;
+                total_assigned_weight += node->weight;
+            }
+            total_weight += node->weight;
+        }
+        if (total_assigned_weight < total_non_fixed_weight) {
+            for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
+                graphnode* node = it->node;
+                if (!node->weight_fixed) {
+                    node->weight += total_non_fixed_weight - total_assigned_weight;
+                    break;
+                }
+            }
+        }
+    }
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
-        if (node->weight_fixed) continue;
-        node->weight = node->weight / total_sqrt_balance * node->balance;
         total_weight += node->weight;
         node->balance = 0;
     }
-    
+
     // Calculate the time for each process, proportional to its weight
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
-        node->how_long = node->weight / total_weight * (1ll<<32);
+        node->how_long = node->weight * (1ll<<32) / total_weight;
         total_time += node->how_long;
     }
     
