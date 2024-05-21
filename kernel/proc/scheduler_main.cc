@@ -25,8 +25,10 @@ void scheduler_main() {
 	if(!is_launched) {
 		scheduler = new hl_sched();
 		scheduler->add_process(init[0]);
-		//scheduler->add_process(init[1]);
-		//scheduler->add_process(init[2]);
+		scheduler->add_process(init[1]);
+		scheduler->add_edge(init[0]->get_pid(), init[1]->get_pid());
+		scheduler->add_process(init[2]);
+		scheduler->add_edge(init[1]->get_pid(), init[2]->get_pid());
 		current_process = init[0];
 		is_launched = true;
 	} else {
@@ -38,7 +40,9 @@ void scheduler_main() {
 	auto com = scheduler->next();
 	printf("com : pid = %lu, how_long = %lx, wait_after = %d\n", com.to_exec->get_pid(), com.how_long, com.spin_after);
 	registers = com.to_exec->context;
+	current_process = com.to_exec;
 	ptss->ist[3] = (intptr_t)(&com.to_exec->kernel_stack[0]);
+	printf("process cr3 = %p\n", registers.cr3);
 	} catch(std::exception& e) {
 		puts(e.what());
 		halt();

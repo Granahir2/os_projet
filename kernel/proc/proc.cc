@@ -2,7 +2,7 @@
 #include "kernel/kernel.hh"
 #include "elf.hh"
 #include "x86/asm_stubs.hh"
-
+#include "kernel/mem/utils.hh"
 size_t proc::c_pid = 0; 
 
 proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
@@ -26,9 +26,11 @@ proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
 	auto kernel_cr3 = x64::get_cr3();
 	memset((x64::pml4*)(context.cr3 - 512*1024*1024*1024ul), 0, 511*sizeof(x64::hl_paging_entry)); // We do *not* do a deep copy to keep sync !
 	memcpy(&(((x64::pml4*)(context.cr3 - 512*1024*1024*1024ul))->entry[511]), &(((x64::pml4*)(kernel_cr3-512*1024*1024*1024ul))->entry[511]),
-	sizeof(x64::hl_paging_entry)); // Entries 510 - 511
+	sizeof(x64::hl_paging_entry)); // Entry 511
 
-	memset(&(((x64::pml4*)(kernel_cr3 - 512*1024*1024*1024ul))->entry[510]), 0, sizeof(x64::hl_paging_entry)); // Unmap 510 from the kernel's POV
+	x64::load_cr3(context.cr3);
+
+	//memset(&(((x64::pml4*)(kernel_cr3 - 512*1024*1024*1024ul))->entry[510]), 0, sizeof(x64::hl_paging_entry)); // Unmap 510 from the kernel's POV
 
 	/*
 	Map the future process' 0 - 512G range to the kernel's  -1024G -- -512G range.
@@ -51,19 +53,19 @@ proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
 			throw runtime_error("Malformed ELF section");
 		}
 
-		x64::linaddr start_addr = phead.vaddr - (512*2)*1024*1024*1024ul; // Start of the 510th entry in PML4
+		x64::linaddr start_addr = phead.vaddr; //- (512*2)*1024*1024*1024ul; // Start of the 510th entry in PML4
 		pphmem_man->back_vmem(start_addr, phead.memsz, 0b100); // Make page user-visible
+		x64::load_cr3(context.cr3);
 		//printf("Seeking to %lu\n", phead.file_off);
 		loadfrom->seek(phead.file_off, SET);
 		//printf("Reading %lu(+%lu)\n", phead.file_off, phead.filesz);
 		loadfrom->read((void*)(start_addr), phead.filesz);
 		memset((uint8_t*)(start_addr) + phead.filesz, 0, phead.memsz - phead.filesz);
-		
 		currpos += head.ph_entry_size;
 	}
 
 	// Transport the -6 GB -- -2 GB to the process' view of the lowest 4 GiB.
-	memcpy(&(((x64::pml4*)(context.cr3- 512*1024*1024*1024ul))->entry[0]), &(((x64::pml4*)(kernel_cr3- 512*1024*1024*1024ul))->entry[510]), sizeof(x64::hl_paging_entry));
+	//memcpy(&(((x64::pml4*)(context.cr3- 512*1024*1024*1024ul))->entry[0]), &(((x64::pml4*)(kernel_cr3- 512*1024*1024*1024ul))->entry[510]), sizeof(x64::hl_paging_entry));
 	context.cs = 0x18 | 3;
 	context.ss = 0x20 | 3;
 	context.gp_regs[5] = (uintptr_t)(stdo); // rdi

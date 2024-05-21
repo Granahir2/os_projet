@@ -184,7 +184,7 @@ command hl_sched::next() {
     }
     c.how_long = current_node->how_long;
     waiting_for_report = true;
-    current_node = current_node;
+    this->current_node = current_node;
     return c;
 }
 

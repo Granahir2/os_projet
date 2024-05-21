@@ -17,6 +17,7 @@ phmem_resolvant resolve_to_phmem(linaddr to_resolve) {
 	hl_paging_entry val = lvl4->entry[(to_resolve >> 39) & 0x1ff];
 	isrw &= (val.content & hl_paging_entry::RW) != 0;
 	if(!(val.content & hl_paging_entry::P)) {
+		puts("Fail at lvl4");
 		return {phmem_resolvant::NOT_MAPPED, isrw, (phaddr)(-1)};
 	}
 
@@ -26,6 +27,7 @@ phmem_resolvant resolve_to_phmem(linaddr to_resolve) {
 	val = lvl3->entry[(to_resolve >> 30) & 0x1ff];
 	isrw &= (val.content & hl_paging_entry::RW) != 0;
 	if(!(val.content & hl_paging_entry::P)) {
+		puts("Fail at lvl3");
 		return {phmem_resolvant::NOT_MAPPED, isrw, (phaddr)(-1)};
 	}
 
@@ -33,6 +35,7 @@ phmem_resolvant resolve_to_phmem(linaddr to_resolve) {
 	val = lvl2->entry[(to_resolve >> 21) & 0x1ff];
 	isrw &= (val.content & hl_paging_entry::RW) != 0;
 	if(!(val.content & hl_paging_entry::P)) {
+		puts("Fail at lvl2");
 		return {phmem_resolvant::NOT_MAPPED, isrw, (phaddr)(-1)};
 	}
 	if(val.content & hl_paging_entry::PS) {
@@ -43,6 +46,7 @@ phmem_resolvant resolve_to_phmem(linaddr to_resolve) {
 	auto pt_entry = pg_table->entry[(to_resolve >> 12) & 0x1ff];
 	isrw &= (pt_entry.content & pte::RW) != 0;
 	if(!(pt_entry.content & pte::P)) {
+		puts("Fail at pagelevel");
 		return {phmem_resolvant::NOT_MAPPED, isrw, (phaddr)(-1)};
 	}
 

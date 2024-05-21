@@ -2,6 +2,7 @@
 #include "x86/asm_stubs.hh"
 #include "utils.hh"
 #include "default_pages.hh"
+#include "kstdlib/cstring.hh"
 using namespace x64;
 
 namespace mem {
@@ -54,6 +55,7 @@ void default_pages_init(uint64_t kernel_zero) {
 	highhalf_pml3.entry[511].content = resolve_to_phmem((linaddr)(&higherhalf_pds.dir1)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
 
 	//toplevel.entry[0].content = resolve_to_phmem((linaddr)(&lower_pml3)).resolved | 0b11 | hl_paging_entry::OS_CRAWLABLE;
+	memset(&toplevel, 0, 511*sizeof(toplevel.entry[0]));
 	toplevel.entry[511].content = resolve_to_phmem((linaddr)(&highhalf_pml3)).resolved | 0b11| hl_paging_entry::OS_CRAWLABLE;
 
 	load_cr3(resolve_to_phmem((linaddr)(&toplevel)).resolved);

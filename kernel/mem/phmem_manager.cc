@@ -108,7 +108,7 @@ bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags,
 	auto end = where - 1 + size;
 	flags &= 0xfff;
 
-	if((int64_t)where <= -(1ll << 48) || (int64_t)(where) >= (1ll >> 48)) {
+	if((int64_t)where <= -(1ll << 48) || (int64_t)(where) >= (1ll << 48)) {
 		return false;
 	}
 	bool iskernel = ((int64_t)where < 0) && ((int64_t)where >= -2*1024*1024*1024);
@@ -140,7 +140,7 @@ bool phmem_manager::back_vmem(x64::linaddr where, uint64_t size, uint32_t flags,
 void phmem_manager::unback_vmem(x64::linaddr where, uint64_t size, [[maybe_unused]] uint32_t flags) {	
 	auto start = where;
 	auto end = where - 1 + size;
-	if((int64_t)where <= -(1ll << 48) || (int64_t)(where) >= (1ll >> 48)) {return;}
+	if((int64_t)where <= -(1ll << 48) || (int64_t)(where) >= (1ll << 48)) {return;}
 	bool iskernel = ((int64_t)where < 0) && ((int64_t)where >= -2*1024*1024*1024);
 	struct {
 		void operator()(hl_paging_entry*) {};
