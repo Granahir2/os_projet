@@ -89,7 +89,7 @@ void hl_sched::update_weights() {
     uint64_t total_sqrt_balance = 0;
     uint64_t total_weight = 0;
     uint64_t total_time = 0;
-s
+
     // Magic algorithm
     for (graphnode_list* it = ready_queue_head; it != nullptr; it = it->next) {
         graphnode* node = it->node;
