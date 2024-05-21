@@ -55,7 +55,7 @@ void hl_sched::exec_report(bool graceful_yield) {
     if (!waiting_for_report) {
         throw runtime_error("Not waiting for report");
     }
-    if (graceful_yield & (!current_node->weight_fixed)) {
+    if (!graceful_yield && (!current_node->weight_fixed)) {
         current_node->balance++;
         weights_are_up_to_date = false;
     }
