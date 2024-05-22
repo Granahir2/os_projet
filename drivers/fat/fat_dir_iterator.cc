@@ -98,7 +98,6 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
                 cnt = 0;
 
                 fat_fs->fh->read(&DirEntry, 32);
-
                 if (DirEntry.DIR_Name[0] == 0xE5) continue;
                 if (DirEntry.DIR_Name[0] == 0x00) break;
 
@@ -194,7 +193,6 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
                 // Directory
                 number_of_LFN_entries = -1;
                 fat_fs->fh->read(&DirEntry, 32);
-
                 if (DirEntry.DIR_Name[0] == 0xE5) continue;
                 if (DirEntry.DIR_Name[0] == 0x00) break;
 
@@ -327,6 +325,8 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
                 cnt = 0;
                 
                 fat_fs->fh->read(&DirEntry, 32);
+                if (DirEntry.DIR_Name[0] == 0xE5) continue;
+                if (DirEntry.DIR_Name[0] == 0x00) break;
 
                 // Calculate checksum
                 uint8_t checksum = 0;
@@ -419,6 +419,9 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
                 // Directory
                 number_of_LFN_entries = -1;
                 fat_fs->fh->read(&DirEntry, 32);
+                if (DirEntry.DIR_Name[0] == 0xE5) continue;
+                if (DirEntry.DIR_Name[0] == 0x00) break;
+
 
                 // Calculate checksum
                 uint8_t checksum = 0;
@@ -532,6 +535,8 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 cnt = 0;
                 
                 fat_fs->fh->read(&DirEntry, 32);
+                if (DirEntry.DIR_Name[0] == 0xE5) continue;
+                if (DirEntry.DIR_Name[0] == 0x00) break;
 
                 // Calculate checksum
                 uint8_t checksum = 0;
@@ -544,14 +549,14 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 // Add new file name to the list
                 dirlist_token* new_token = new dirlist_token;
                 new_token->name = basic_string(found_directory_Name);
-		printf("Found %s\n", new_token->name.c_str());
+                printf("Found 1 %s\n", found_directory_Name);
                 if (filename_list_head == nullptr)
                 {
                     filename_list_head = new_token;
                 } else {
-			new_token->next.ptr = filename_list_head;
-			filename_list_head = new_token;
-		}
+                    new_token->next.ptr = filename_list_head;
+                    filename_list_head = new_token;
+                }
             }
         }
 
@@ -629,6 +634,9 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 // Directory
                 number_of_LFN_entries = -1;
                 fat_fs->fh->read(&DirEntry, 32);
+                if (DirEntry.DIR_Name[0] == 0xE5) continue;
+                if (DirEntry.DIR_Name[0] == 0x00) break;
+
 
                 // Calculate checksum
                 uint8_t checksum = 0;
@@ -640,15 +648,15 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 // Add new file name to the list
                 dirlist_token* new_token = new dirlist_token;
                 new_token->name = basic_string(found_directory_Name);
-		printf("Found %s as a directory\n", found_directory_Name);
+                printf("Found 2 %s as a directory\n", found_directory_Name);
                 if (filename_list_head == nullptr)
                 {
                     filename_list_head = new_token;
                 }
                 else
                 {
-			new_token->next.ptr = filename_list_head;
-			filename_list_head = new_token;
+                    new_token->next.ptr = filename_list_head;
+                    filename_list_head = new_token;
                 }
             }
         }
