@@ -206,7 +206,12 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, u
 	imngr.register_gate(32, 2, (uint64_t)(&saveregs_hook), 3); // Scheduler interrupt
 	imngr.register_gate(33, 3, (uint64_t)(&syscall_hook), 3); // Syscall interrupt
 
-	x64::linaddr req_isr[1] = {(x64::linaddr)(&APIC_timer)};
+	x64::linaddr req_isr[1] = {(x64::linaddr)(&saveregs_hook)};
+	uint8_t base = imngr.register_interrupt_block(1, &req_isr[0]);
+	printf("Got %d\n", (int)base);
+	imngr.apic_base()[0x320/4] = 0x00010000 | base; // Setup APIC on "base" interrupt;
+	// don't trigger it yet.
+
 	imngr.enable();
 
 	printf("kernel_zero was %p\n", kernel_zero);
@@ -478,11 +483,14 @@ extern "C" void kernel_main() {
 	objfile.ptr->seek(0, SET);
 	proc process3(objfile.ptr, stdout);	
 	init[2] = &process3;
-	
-	static int i = 0;
-	asm("int $32"); // "setjmp"
-	printf("Hello !\n");
-	puts("Got cake ?!");
+
+	puts("Launching userspace soon (tm)");
+
+	pimngr->apic_base()[0x320/4] &= ~(1ul << 16);// Setup APIC on "base" interrupt;
+	pimngr->apic_base()[0x3e0/4] = 0;
+	pimngr->apic_base()[0x380/4] = 1 << 28;
+	while(true) {}	
+	puts("Should have become unreacheable.");
 	halt();
 }
 

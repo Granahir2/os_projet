@@ -66,6 +66,8 @@ proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
 
 	// Transport the -6 GB -- -2 GB to the process' view of the lowest 4 GiB.
 	//memcpy(&(((x64::pml4*)(context.cr3- 512*1024*1024*1024ul))->entry[0]), &(((x64::pml4*)(kernel_cr3- 512*1024*1024*1024ul))->entry[510]), sizeof(x64::hl_paging_entry));
+	
+	context.flags |= 1 << 9; // Enable interrupts !
 	context.cs = 0x18 | 3;
 	context.ss = 0x20 | 3;
 	context.gp_regs[5] = (uintptr_t)(stdo); // rdi

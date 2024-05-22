@@ -24,10 +24,10 @@ public:
 	//uint8_t register_IO_interrupt(uint8_t irqnum, x64::linaddr isr); // Used to register interrupts through I/O APIC
 	void register_gate(uint8_t vector, uint8_t ist, x64::linaddr isr, uint8_t pl=0);
 	
-	uint64_t apic_base();
+	uint32_t volatile* apic_base() const;
 	uint32_t apic_id();
 	uint32_t apic_version();
-	uint32_t ioapic_version();
+	uint32_t ioapic_version();	
 
 	void send_EOI();
 private:

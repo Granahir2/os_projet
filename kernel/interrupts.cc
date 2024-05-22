@@ -60,13 +60,13 @@ void interrupt_manager::register_gate(uint8_t vector, uint8_t ist, x64::linaddr 
 	idt[vector].ist_value = ist;
 	idt[vector].offset_hi = isr >> 32;
 
-	if(vector > 32) {
+	if(vector >= 32) {
 		isallocd[(vector - 32)/32] |= 1u << ((vector - 32) % 32);
 	}
 
 }
 
-uint64_t interrupt_manager::apic_base() { return (uint64_t)(apic); }
+uint32_t volatile* interrupt_manager::apic_base() const { return apic; }
 uint32_t interrupt_manager::apic_id() {return apic[0x20/4];}
 uint32_t interrupt_manager::apic_version() {return apic[0x30/4];}
 uint32_t interrupt_manager::ioapic_version() { return ioapic_read(0x01);}
