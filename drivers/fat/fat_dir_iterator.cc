@@ -547,9 +547,15 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 there_is_long_name = false;
 
                 // Add new file name to the list
+                if (strcmp(found_directory_Name, ".") == 0 || strcmp(found_directory_Name, "..") == 0)
+                {
+                    // Skip . and ..
+                    continue;
+                }
                 dirlist_token* new_token = new dirlist_token;
                 new_token->name = basic_string(found_directory_Name);
-                printf("Found 1 %s\n", found_directory_Name);
+                new_token->is_directory = DirEntry.DIR_Attr & ATTR_DIRECTORY;
+                new_token->file_size = DirEntry.DIR_FileSize;
                 if (filename_list_head == nullptr)
                 {
                     filename_list_head = new_token;
@@ -646,9 +652,15 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                     throw runtime_error("Corrupted directory entry: checksum mismatch");
 
                 // Add new file name to the list
+                if (strcmp(found_directory_Name, ".") == 0 || strcmp(found_directory_Name, "..") == 0)
+                {
+                    // Skip . and ..
+                    continue;
+                }
                 dirlist_token* new_token = new dirlist_token;
                 new_token->name = basic_string(found_directory_Name);
-                printf("Found 2 %s as a directory\n", found_directory_Name);
+                new_token->is_directory = DirEntry.DIR_Attr & ATTR_DIRECTORY;
+                new_token->file_size = DirEntry.DIR_FileSize;
                 if (filename_list_head == nullptr)
                 {
                     filename_list_head = new_token;
