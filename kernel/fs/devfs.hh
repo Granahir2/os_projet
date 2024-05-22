@@ -28,6 +28,6 @@ public:
 	bool attach_serial(smallptr<serial::portdriver>&&); // only device type supported as of now
 	bool attach_tty(smallptr<vga::text_driver>&&);
 private:
-	smallptr<serial::portdriver>  pdarr[32] = {smallptr<serial::portdriver>()}; // probably dynamic in future iteration
+	smallptr<serial::portdriver>  pdarr[32] = {smallptr<serial::portdriver>()}; // dynamic would be better...
 	smallptr<vga::text_driver> td = smallptr<vga::text_driver>();
 };

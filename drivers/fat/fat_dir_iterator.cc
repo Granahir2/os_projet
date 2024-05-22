@@ -447,8 +447,9 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
 
 dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* filename_list_head, dirlist_token* filename_list_tail)
 {
-    if(filename_list_head == nullptr) filename_list_head = new dirlist_token();
-    if(filename_list_head == nullptr) filename_list_tail = new dirlist_token();
+
+    /*if(filename_list_head == nullptr) filename_list_head = new dirlist_token();
+    if(filename_list_tail == nullptr) filename_list_tail = new dirlist_token();*/
 
     // Traverse through directory to find the file
     FAT_dir_entry DirEntry;
@@ -543,16 +544,14 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 // Add new file name to the list
                 dirlist_token* new_token = new dirlist_token;
                 new_token->name = basic_string(found_directory_Name);
+		printf("Found %s\n", new_token->name.c_str());
                 if (filename_list_head == nullptr)
                 {
                     filename_list_head = new_token;
-                    filename_list_tail = new_token;
-                }
-                else
-                {
-                    filename_list_tail->next.ptr = new_token;
-                    filename_list_tail = new_token;
-                }
+                } else {
+			new_token->next.ptr = filename_list_head;
+			filename_list_head = new_token;
+		}
             }
         }
 
@@ -641,15 +640,15 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 // Add new file name to the list
                 dirlist_token* new_token = new dirlist_token;
                 new_token->name = basic_string(found_directory_Name);
+		printf("Found %s as a directory\n", found_directory_Name);
                 if (filename_list_head == nullptr)
                 {
                     filename_list_head = new_token;
-                    filename_list_tail = new_token;
                 }
                 else
                 {
-                    filename_list_tail->next.ptr = new_token;
-                    filename_list_tail = new_token;
+			new_token->next.ptr = filename_list_head;
+			filename_list_head = new_token;
                 }
             }
         }

@@ -473,6 +473,14 @@ extern "C" void kernel_main() {
     }
     puts("File system : TEST 4 PASSED");
 
+	dirlist_token dt = fat_it->list();
+	dirlist_token* current_tok = &dt;
+	puts("survived listing");
+	do {
+		puts(current_tok->name.c_str());
+		current_tok = current_tok->next.ptr;
+	} while (current_tok != nullptr);
+
 	smallptr<filehandler> objfile = fat_it->open_file("test.elf", RW);
 	proc process(objfile.ptr, stdout);	
 	init[0] = &process;
