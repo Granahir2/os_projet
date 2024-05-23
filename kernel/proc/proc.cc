@@ -34,13 +34,15 @@ proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
 	Map the future process' 0 - 512G range to the kernel's  -1024G -- -512G range.
 	*/	
 
-	printf("ELF has %d program header entries\n", head.ph_entry_num);
+	//printf("ELF has %d program header entries\n", head.ph_entry_num);
 	for(unsigned i = 0; i < head.ph_entry_num; ++i) {
 		loadfrom->seek(currpos, SET);
 		loadfrom->read(&phead, sizeof(phead));
 		
-		if(!(phead.type & elf::program_header::LOAD)) {
-			if(phead.type & elf::program_header::DYNAMIC) {
+		if(phead.type != elf::program_header::LOAD) {
+			//printf("currpos = %lx\n", currpos);
+			//printf("Skipping entry %d of type %lx\n", i, phead.type);
+			if(phead.type == elf::program_header::DYNAMIC) {
 				throw runtime_error("Dynamic loading is not yet supported");
 			}
 		}
@@ -53,8 +55,7 @@ proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
 		pphmem_man->back_vmem(start_addr, phead.memsz, 0b100); // Make page user-visible
 		x64::load_cr3(context.cr3);
 		loadfrom->seek(phead.file_off, SET);
-		uint32_t* buffer = new uint32_t[phead.filesz];
-		size_t s = loadfrom->read(buffer, phead.filesz);//32*32);//(void*)(start_addr), phead.filesz);
+		size_t s = loadfrom->read((void*)(start_addr), phead.filesz);
 		printf("Loaded %lu bytes to %p from offset %lx\n", phead.filesz, start_addr, phead.file_off);
 		if(s != phead.filesz) {throw runtime_error("Could not read whole section");}
 		memset((uint8_t*)(start_addr) + phead.filesz, 0, phead.memsz - phead.filesz);

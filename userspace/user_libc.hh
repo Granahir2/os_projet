@@ -19,3 +19,4 @@ FILE* open(const char* name, int mode, DIR* it);
 
 
 void canonical_path(DIR* d, char* buffer, size_t n);
+size_t list(DIR* d, char* buffer, size_t n);

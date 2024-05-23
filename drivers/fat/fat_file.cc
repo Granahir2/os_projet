@@ -71,7 +71,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
     size_t remaining_in_cluster = fat_fs->cluster_size - read_write_head_position_within_cluster;
     if (remaining_in_cluster > size)
         remaining_in_cluster = size;
-    fat_fs->fh->read(buffer+write_head_position_in_buffer, remaining_in_cluster);
+    fat_fs->fh->read((uint8_t*)(buffer)+write_head_position_in_buffer, remaining_in_cluster);
     read_write_head_position += remaining_in_cluster;
     write_head_position_in_buffer += remaining_in_cluster;
     read_write_head_position_within_cluster = 0;
@@ -91,7 +91,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
         fat_fs->fh->seek(fat_fs->cluster_number_to_address(current_cluster), SET);
-        fat_fs->fh->read(buffer+write_head_position_in_buffer, fat_fs->cluster_size);
+        fat_fs->fh->read((uint8_t*)(buffer)+write_head_position_in_buffer, fat_fs->cluster_size);
         read_write_head_position += fat_fs->cluster_size;
         write_head_position_in_buffer += fat_fs->cluster_size;
         read_write_head_position_cluster_number = current_cluster;
@@ -111,7 +111,8 @@ size_t FAT_file::read(void* buffer, size_t size) {
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
-        fat_fs->fh->read(buffer+write_head_position_in_buffer, size);
+        fat_fs->fh->seek(fat_fs->cluster_number_to_address(current_cluster), SET);
+        fat_fs->fh->read((uint8_t*)(buffer)+write_head_position_in_buffer, size);
         read_write_head_position += size;
         write_head_position_in_buffer += size;
         read_write_head_position_within_cluster = size;

@@ -316,18 +316,19 @@ int printf(const char* src, ...) {
 	return r;
 }
 
+const char* str = "Hello from C userspace!";
+
 int main() {
-	const char* str = "Hello from C userspace!\n";
-	fwrite(str, 1, 24, stdout);
+	puts(str);
 	if(stdin == nullptr) {return 0;}
 	DIR* d = get_root();
 	while(true) {
-		//char buf[256];
-		//canonical_path(d, buf, 256);
-		//printf("%s>", buf);
+		char buf[256];
+		canonical_path(d, buf, 256);
+		printf("%s>", buf);
 
 		size_t totsize = 0;
-		char buffer[256];
+		char buffer[257];
 
 		while(totsize == 0 || buffer[totsize - 1] >= 32) {
 			asm("int $32");
@@ -340,22 +341,24 @@ int main() {
 				}
 			} else continue;
 			totsize += s;
-		}
+		} 
+		putchar('\n');
 
-			buffer[totsize - 1] = '\0';
-			switch(traverse(&buffer[0], d)) {
-				case FILE_ENTRY:
-					fwrite(" is a file\n",1, 11, stdout); 
-					break;
-				case DIR_ENTRY:
-					fwrite(" is a dir\n",1, 10,stdout);
-					break;
-				default:
-					fwrite(" doesn't\n",1, 9, stdout);
-					break;
+		buffer[totsize - 1] = '\0';
+		traverse(&buffer[0], d);
 
-			}
+		buffer[256] = '\0';
+
+		size_t listingsz = list(d, buffer, 256);
 		
+		if(listingsz == 256) {
+			puts("directory too long to hold in buffer\n");
+		} else {
+			for(int i = 0; i < listingsz; ++i) {
+				printf("%s\n", &buffer[i]);
+				i += strlen(&buffer[i]);
+			}
+		}	
 	}
 
 	return 0;

@@ -4,7 +4,7 @@
 #include "kernel/kernel.hh"
 #include "sched.hh"
 
-
+#include <algorithm>
 hl_sched* scheduler;
 
 proc* init[3];
@@ -93,7 +93,38 @@ long syscall_main(int callnum, void* ptr, long arg1, long arg2, long arg3) {
 			strncpy((char*)arg1, d->get_canonical_path().c_str(), arg2);
 			return 0;
 		}
-	
+		case 6: {
+			auto* d = (dir_iterator*)(ptr);
+			if(!d) {return -1;}
+			dirlist_token dirtok = d->list();
+			dirlist_token* index = &dirtok;
+
+
+			dirlist_token* current_tok = &dirtok;
+			do {
+				puts(current_tok->name.c_str());
+				current_tok = current_tok->next.ptr;
+			} while (current_tok != nullptr);
+
+			size_t remaining = (long)arg2;
+			if(!remaining) {return -1;}
+			char*  result = (char*)arg1;
+			while(index != nullptr && remaining > 0) {
+				strncpy(result, index->name.c_str(), remaining - 1);
+				size_t m = std::min(strlen(index->name.c_str()), remaining - 1);
+				result+=m;
+				*result = '\0';
+				result++;
+				if(m == remaining - 1) { // We're over	
+					remaining = 0;
+				} else {
+					remaining -= m + 1;
+				}
+				index = index->next.ptr;
+			}
+			return (long)arg2 - remaining;
+		}
+
 		default: break;
 		}
 	} catch(std::exception&) {}

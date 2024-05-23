@@ -471,20 +471,18 @@ extern "C" void kernel_main() {
 	auto tty = it->open_file("tty0", WRONLY);
 
 	smallptr<filehandler> objfile = fat_it->open_file("test.elf", RW);
-	uint32_t* buffer2 = new uint32_t[9000];
-	objfile.ptr->read(buffer2, 32*32);
-	
-	printf("Small read :\n");
+	//smallptr<filehandler> objfile2 = fat_it->open_file("test2.elf", RW);
+	/*
+	uint32_t buf[32];
+	objfile.ptr->read(buf, 0x40);
 	for(int i = 0; i < 32; ++i) {
-		printf("%x\n", buffer2[i]);
+		printf("%x\n", buf[i]);
 	}
-	objfile.ptr->seek(0, SET);
-	objfile.ptr->read(buffer2, 9000);
-	puts("Large read :");
+	objfile.ptr->seek(0x41, SET);
+	objfile.ptr->read(buf, 32*sizeof(uint32_t));
 	for(int i = 0; i < 32; ++i) {
-		printf("%x\n", buffer2[i]);
-	}
-	/*smallptr<filehandler> objfile2 = fat_it->open_file("test2.elf", RW);
+		printf("%x\n", buf[i]);
+	}*/
 	proc process(objfile.ptr, tty.ptr, stdout);	
 	init[0] = &process;
 
@@ -498,10 +496,10 @@ extern "C" void kernel_main() {
 	init[2] = &process3;
 
 	puts("Launching userspace soon (tm)");
-
+	
 	pimngr->apic_base()[0x320/4] &= ~(1ul << 16);// Setup APIC on "base" interrupt;
 	pimngr->apic_base()[0x3e0/4] = 0;
-	pimngr->apic_base()[0x380/4] = 1 << 28;*/
+	pimngr->apic_base()[0x380/4] = 1 << 28;
 	while(true) {}	
 	puts("Should have become unreacheable.");
 	halt();

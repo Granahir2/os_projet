@@ -32,3 +32,8 @@ drit_status traverse(const char* name, DIR* d) {
 void canonical_path(DIR* d, char* buffer, size_t n) {
 	syscall(5, d, (long)buffer, n);
 }
+
+
+size_t list(DIR* d, char* buffer, size_t n) {
+	return (size_t)syscall(6, d, (long)buffer, n);
+}
