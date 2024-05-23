@@ -345,6 +345,20 @@ int main() {
 		putchar('\n');
 
 		buffer[totsize - 1] = '\0';
+        // Taking backspaces into account
+        size_t itr1 = 0, itr2 = 0;
+        while (itr1 < totsize)
+        {
+            if (buffer[itr1] == 127)
+            {
+                if (itr2 > 0) itr2--;
+            }
+            else buffer[itr2++] = buffer[itr1];
+            itr1++;
+        }
+        buffer[itr2++] = '\0';
+        totsize = itr2;
+
 		traverse(&buffer[0], d);
 
 		buffer[256] = '\0';
