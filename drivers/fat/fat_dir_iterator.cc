@@ -986,7 +986,7 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
         }
         else
         {
-            throw logic_error("FFailed to make a new file/folder, due to lack of space in root directory, which cannot be extended in FAT12/FAT16.");
+            throw logic_error("Failed to make a new file/folder, due to lack of space in root directory, which cannot be extended in FAT12/FAT16.");
         }
     }
 }
