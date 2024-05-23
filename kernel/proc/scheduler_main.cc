@@ -28,27 +28,17 @@ void scheduler_main() {
 		scheduler->add_edge(init[1]->get_pid(), init[2]->get_pid());
 		current_process = init[0];
 		is_launched = true;
+		pimngr->send_EOI();
 	} else {
 		current_process->context = registers;
-		/*for(int i = 0; i < 256/32; ++i) {
-			printf("ISR : %x\n", pimngr->apic_base()[0x100/4 + 4*i]);
-			// Every word is 16 byte aligned
-		}*/
 		bool has_been_interrupted = pimngr->apic_base()[0x100/4 + 4] & (0b100); // We are vector 34
-		if(has_been_interrupted) {puts("Ran out of time!");/*pimngr->send_EOI();*/}
+		if(has_been_interrupted) {pimngr->send_EOI();}
 		scheduler->exec_report(!has_been_interrupted);
 	}
-	pimngr->send_EOI();
-
-	/*
-	puts("---------------------");
-	for(int i = 0; i < 256/32; ++i) {
-		printf("ISR : %x\n", pimngr->apic_base()[0x100/4 + 4*i]);
-	}*/
 	
 	try {
 	auto com = scheduler->next();
-	printf("com : pid = %lu, how_long = %lx, wait_after = %d\n", com.to_exec->get_pid(), com.how_long, com.spin_after);
+	//printf("com : pid = %lu, how_long = %lx, wait_after = %d\n", com.to_exec->get_pid(), com.how_long, com.spin_after);
 	registers = com.to_exec->context;
 	current_process = com.to_exec;
 	ptss->ist[3] = (intptr_t)(&com.to_exec->kernel_stack[0]);
@@ -69,19 +59,45 @@ void scheduler_main() {
 Syscall semantics are like those of a function call, therefore there's no need 
 to save 
 */
-void syscall_main(int callnum, void* ptr, long arg1, long arg2, long arg3) {
+long syscall_main(int callnum, void* ptr, long arg1, long arg2, long arg3) {
 	try {
 	switch(callnum) {
-		case 0: {
+		case 0: { // read
 			auto* p = (filehandler*)(ptr);
-			p->read((void*)arg1, arg2);} break;
-		case 1: {
+			if(!p) {return -1;}
+			return p->read((void*)arg1, arg2);} break;
+		case 1: { // write
 			auto* p = (filehandler*)(ptr);
-			p->write((const void*)arg1, arg2);} break;
+			if(!p) {return -1;}
+			return p->write((const void*)arg1, arg2);} break;
+	
+		case 2: { // open
+			auto* p = (dir_iterator*)(ptr);
+			if(!p) {return -1;}
+			auto x = p->open_file((const char*)(arg1), arg2);
+			if(x.ptr) {
+				current_process->open_files = new flist{x.ptr, current_process->open_files};
+			} return (long)x.ptr;};
+		case 3: { // traverse
+			auto* p = (dir_iterator*)(ptr);
+			if(!p) {return -1;}
+			return (*p << (const char*)(arg1));}
+		case 4: { // grabs a vfs iterator
+			auto* d = vfs->get_iterator();
+			if(d) {
+				current_process->open_dirs = new dlist{d, current_process->open_dirs};
+			} return (long)d;}
+		case 5: { // gets canonical path
+			auto* d = (dir_iterator*)(ptr);
+			if(!d) {return -1;}
+			strncpy((char*)arg1, d->get_canonical_path().c_str(), arg2);
+			return 0;
+		}
+	
 		default: break;
-	}
+		}
 	} catch(std::exception&) {}
 
-	return;
+	return -1ull;
 }
 }

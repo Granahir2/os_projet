@@ -18,7 +18,7 @@ enum drit_status {DIR_ENTRY, FILE_ENTRY, LINK_ENTRY, UNDERRUN, NP};
 // DIR_ENTRY: All went well,
 // FILE_ENTRY: A file was given, thus not pushing
 // LINK_ENTRY: A link was given, thus not pushing
-// NP: Not 
+// NP: Not present
 
 struct statbuf { // Result from stat
 	time_t tcreat;

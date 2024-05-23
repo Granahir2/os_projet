@@ -1,6 +1,7 @@
 #pragma once
 #include "fs.hh"
 #include "kstdlib/string.hh"
+#include "kstdlib/map.hh"
 /*
 Root file system. Handles mount points and provides a uniform interface.
 Integrates link following.
@@ -18,6 +19,7 @@ public:
 	string get_canonical_path() override;
 	string readlink(const char* str) override;
 	smallptr<filehandler> open_file(const char* str, int mode) override; 
+	dirlist_token list() override;
 private:
 	
 	struct {dir_iterator* di; int offset;} drit_stk[32] = {{nullptr, 0}};
@@ -32,6 +34,7 @@ public:
 	rootfs();
 	rootfs_dit* get_iterator() override;
 
+	void mount(fs* tomount, const char* mountpath); 
 	int lookup_mnt(const char* str);
 	struct mntentry {
 		mntentry() : fsys(nullptr), mountpath() {}
