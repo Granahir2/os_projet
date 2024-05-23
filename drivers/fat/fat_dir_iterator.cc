@@ -8,7 +8,8 @@ FAT_dir_iterator::FAT_dir_iterator(FAT_FileSystem* fat_fs, int initial_stack_siz
         stack_pointer(0), 
         stack_size(initial_stack_size), 
         fat_fs(fat_fs), 
-        first_cluster_of_current_directory(fat_fs->BPB_RootClus) {}
+        first_cluster_of_current_directory(fat_fs->BPB_RootClus), 
+        short_file_name_counter(0) {}
 
 drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cluster) {
     if (stack_pointer == stack_size) 
@@ -676,6 +677,162 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
         filename_list_head->next.ptr = nullptr;
         delete filename_list_head;
         return head;
+    }
+}
+
+void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t current_cluster) 
+{
+    // First, we have to make sure that no already existing file or folder has the same name
+    drit_status check = push(file_name, 0);
+    if (check != NP) 
+    {
+        pop();
+        throw logic_error("There have been files or folders with the same name.");
+    }
+
+    // We calculate the directory entry
+    string s = basic_string(file_name);
+    FAT_dir_entry DIR_ENTRY;
+    uint8_t short_file_name_length = s.length();
+    for (uint8_t i = 0; i < 11; i++) DIR_ENTRY.DIR_Name[i] = 0;
+    if (is_dir) 
+    {
+        if (short_file_name_length > 6) short_file_name_length = 6;
+        for (uint8_t i = 0; i < short_file_name_length; i++) DIR_ENTRY.DIR_Name[i] = s[i];
+    }
+    else 
+    {
+        // We need to take care of the extension in this case
+        uint8_t last_dot = short_file_name_length - 1;
+        while(last_dot && s[last_dot] != '.') last_dot--;
+
+        short_file_name_length = last_dot;
+        if (short_file_name_length > 6) short_file_name_length = 6;
+        for (uint8_t i = 0; i < short_file_name_length; i++) DIR_ENTRY.DIR_Name[i] = s[i];
+
+        short_file_name_length = s.length() - last_dot;
+        if (short_file_name_length > 3) short_file_name_length = 3;
+        for (uint8_t i = 0; i < short_file_name_length; i++) DIR_ENTRY.DIR_Name[i + 9] = s[last_dot + i];
+    }
+    DIR_ENTRY.DIR_Name[7] = '~';
+    DIR_ENTRY.DIR_Name[8] = short_file_name_counter++;
+
+    if (is_dir) DIR_ENTRY.DIR_Attr = ATTR_DIRECTORY;
+    DIR_ENTRY.DIR_NTRes = 0;
+
+    // File/folder is initially empty
+    DIR_ENTRY.DIR_FstClusHI = 0;
+    DIR_ENTRY.DIR_FstClusLO = 0;
+
+    // TODO: set the good create time
+
+    // Then we calculate the checksum
+    uint8_t checksum = 0;
+    for (uint8_t j = 0; j < 11; j++)
+        checksum = ((checksum & 1) ? 0x80 : 0) + (checksum >> 1) + DIR_ENTRY.DIR_Name[j];
+
+    // Then we create the LFN entries for the file name.
+    uint16_t number_of_LFN_entries = (s.length() + 12) / 13;
+
+    FAT_Long_File_Name_entry LFN[number_of_LFN_entries];
+    uint16_t offset = 0;
+    for (uint16_t i = 0; i < number_of_LFN_entries; i++)
+    {
+        LFN[i].LDIR_Ord = i + 1;
+        LFN[i].LDIR_Attr = ATTR_LONG_NAME;
+        LFN[i].LDIR_FstClusLO = 0;
+        LFN[i].LDIR_Chksum;
+        if (offset + 5 > s.length())
+        {
+            for (uint8_t j = 0; j < s.length() - offset; j++) LFN[i].LDIR_Name1[j] = s[j + offset];
+            for (uint8_t j = s.length() - offset; j < 5; j++) LFN[i].LDIR_Name1[j] = 0;
+            for (uint8_t j = 0; j < 6; j++) LFN[i].LDIR_Name2[j] = 0;
+            for (uint8_t j = 0; j < 2; j++) LFN[i].LDIR_Name3[j] = 0;
+            break;
+        }
+        else
+        {
+            for (uint8_t j = 0; j < 5; j++) LFN[i].LDIR_Name1[j] = s[j + offset];
+            offset += 5;
+        }
+
+        if (offset + 6 > s.length())
+        {
+            for (uint8_t j = 0; j < s.length() - offset; j++) LFN[i].LDIR_Name2[j] = s[j + offset];
+            for (uint8_t j = s.length() - offset; j < 6; j++) LFN[i].LDIR_Name2[j] = 0;
+            for (uint8_t j = 0; j < 2; j++) LFN[i].LDIR_Name3[j] = 0;
+            break;
+        }
+        else
+        {
+            for (uint8_t j = 0; j < 6; j++) LFN[i].LDIR_Name2[j] = s[j + offset];
+            offset += 6;
+        }
+
+        if (offset + 5 > s.length())
+        {
+            for (uint8_t j = 0; j < 2; j++) LFN[i].LDIR_Name3[j] = s[j + offset];
+            for (uint8_t j = s.length() - offset; j < 2; j++) LFN[i].LDIR_Name3[j] = 0;
+            break;
+        }
+        else
+        {
+            for (uint8_t j = 0; j < 2; j++) LFN[i].LDIR_Name3[j] = s[j + offset];
+            offset += 2;
+        }
+    }
+    LFN[number_of_LFN_entries - 1].LDIR_Ord |= 0x40;
+
+    // Finally, we need to find space in the directory folder to save these entries
+    // Which is the pain in the butt
+
+    uint8_t empty_entries_count = 0;
+    uint8_t beginning_of_empty_entries;
+    uint8_t first_name_byte;
+    
+    if (fat_fs->FATType == FAT32 || stack_pointer > 0) // If it is not root directory or FAT32
+    {
+        if (current_cluster == SIZE_MAX)
+            current_cluster = this->first_cluster_of_current_directory;
+
+        size_t start_address = fat_fs->cluster_number_to_address(current_cluster);
+        fat_fs->fh->seek(start_address, SET);
+        for (uint16_t i = 0; i < fat_fs->number_of_entries_per_cluster; i++)
+        {
+            // check the first byte
+            fat_fs->read(&first_name_byte, 1);
+
+            // check if it is a directory or a LFN
+            if (first_name_byte == 0xe5)
+            {
+                if (empty_entries_count == 0) beginning_of_empty_entries = ...;
+                empty_entries_count++;
+                if (empty_entries_count >= number_of_LFN_entries + 1) break;
+            }
+            else (first_name_byte == 0)
+        }
+
+        // Check if there is any more cluster
+        size_t next_cluster = fat_fs->find_fat_entry(current_cluster);
+        // If there is none, we throw error that file is not found
+        if (next_cluster >= fat_fs->LAST_CLUSTER || next_cluster == 0)
+        {
+            
+        }
+        // Else, we set the current cluster to the next cluster, and repeat
+        else 
+        {
+
+        }
+    }
+    else 
+    {
+        fat_fs->fh->seek(fat_fs->root_directory_begin_address_for_FAT12_and_FAT16, SET);
+
+        for (uint16_t i = 0; i < fat_fs->BPB_RootEntCnt; i++)
+        {
+
+        }
     }
 }
 

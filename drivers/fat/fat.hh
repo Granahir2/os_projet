@@ -80,17 +80,20 @@ using file = perm_fh<FAT::FAT_file>;
 class FAT_dir_iterator {
 public:
     FAT_dir_iterator(FAT_FileSystem* fat_fs, int initial_stack_size = 32);
-    drit_status push(const char* directory_name, size_t cluster_number = SIZE_MAX);
+    drit_status push(const char* directory_name, size_t current_cluster = SIZE_MAX);
     void pop();
     size_t depth();
     string operator[](size_t index);
-    smallptr<file> open_file(const char* file_name, int mode, size_t cluster_number = SIZE_MAX);
+    smallptr<file> open_file(const char* file_name, int mode, size_t current_cluster = SIZE_MAX);
+    void create_file(const char* file_name, bool is_dir = false, size_t current_cluster = SIZE_MAX);
     dirlist_token list(size_t current_cluster = SIZE_MAX, dirlist_token* filename_list_head = nullptr, dirlist_token* filename_list_tail = nullptr);
 
 private:
     FAT_dir_entry_with_full_name stack[32];
     unsigned int stack_pointer;
     unsigned int stack_size;
+
+    unsigned int short_file_name_counter;
 
     FAT_FileSystem* const fat_fs;
     unsigned short first_cluster_of_current_directory;
