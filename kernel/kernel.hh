@@ -8,7 +8,7 @@
 #include "misc/memory_map.hh"
 #include "kernel/interrupts.hh"
 #include "x86/descriptors.hh"
-
+#include "fs/fs.hh"
 // Linker defined symbols
 extern "C" int kernel_begin;
 extern "C" int kernel_end;
@@ -39,3 +39,5 @@ struct __attribute__((packed)) _gdt {
 extern _gdt* pgdt;
 extern x64::TSS* ptss;
 extern interrupt_manager* pimngr;
+
+extern fs* vfs;

@@ -548,7 +548,8 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 there_is_long_name = false;
 
                 // Add new file name to the list
-                if (strcmp(found_directory_Name, ".") == 0 || strcmp(found_directory_Name, "..") == 0)
+                if (strcmp(found_directory_Name, ".") == 0 || strcmp(found_directory_Name, "..") == 0
+			|| strcmp(found_directory_Name, "") == 0)
                 {
                     // Skip . and ..
                     continue;
@@ -653,7 +654,8 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                     throw runtime_error("Corrupted directory entry: checksum mismatch");
 
                 // Add new file name to the list
-                if (strcmp(found_directory_Name, ".") == 0 || strcmp(found_directory_Name, "..") == 0)
+                if (strcmp(found_directory_Name, ".") == 0 || strcmp(found_directory_Name, "..") == 0
+			|| strcmp(found_directory_Name, "") == 0)
                 {
                     // Skip . and ..
                     continue;

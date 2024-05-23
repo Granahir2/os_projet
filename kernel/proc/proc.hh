@@ -25,6 +25,11 @@ struct flist {
 	flist* next = nullptr;
 };
 
+struct dlist {
+	dir_iterator* dit;
+	dlist* next = nullptr;
+};
+
 class proc {
 public:
 	proc(filehandler* loadfrom, filehandler* stdo = nullptr, filehandler* stdi = nullptr); // loads an ELF executable
@@ -36,7 +41,8 @@ public:
 	uint8_t kernel_stack[4096];
 
 	flist* open_files;
-		
+	dlist* open_dirs;
+
 	int bufnumber = 0; // Buffers are shared memory
 private:
 	static size_t c_pid;

@@ -1,4 +1,4 @@
-#include <stdint.h>
+#include <cstdint>
 
 uint64_t* md5() {
     /* fread, stdin */

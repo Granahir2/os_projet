@@ -110,6 +110,28 @@ smallptr<filehandler> rootfs_dit::open_file(const char* str, int mode) {
 	}
 }
 
+dirlist_token rootfs_dit::list() {
+
+	if(stk_top == -1) {
+
+		dirlist_token* head = new dirlist_token {".", true, nullptr};
+		head = new dirlist_token{"..", true, head, 0};
+		for(int i = 0; i < 256; ++i) {
+			if(!parent->mnts[i].fsys) continue;
+			if(strchr(parent->mnts[i].mountpath.c_str()+1, '/') != nullptr) {
+				continue;
+			}
+			head = new dirlist_token {parent->mnts[i].mountpath, true, head, 0};
+		}
+
+		dirlist_token retval = {head->name, head->is_directory, std::move(head->next)};
+		delete head;
+		return retval;
+	} else {
+		return drit_stk[stk_top].di->list();
+	}
+}
+
 int rootfs::lookup_mnt(const char* s) {
 	for(int i = 0; i < 256;++i) {
 		if(mnts[i].fsys && mnts[i].mountpath && strcmp(s, mnts[i].mountpath.c_str()) == 0) {
@@ -119,6 +141,14 @@ int rootfs::lookup_mnt(const char* s) {
 	return -1;
 }
 
+void rootfs::mount(fs* tomount, const char* mountpath) {
+	/* UGLY : we don't check existence of the path */
+	int i = 0;
+	for(; mnts[i].fsys && i < 256; ++i) {}
+	if(i == 256) {throw eoverflow("Too many mounts!");}
+	mnts[i].fsys = tomount;
+	mnts[i].mountpath = mountpath;
+}
 
 rootfs::rootfs() {}
 

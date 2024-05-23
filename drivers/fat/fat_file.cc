@@ -22,7 +22,7 @@ off_t FAT_file::set_position(size_t position) {
     // If the position is already set, return it
     // Also to handle the case when the file is empty
     if (position == read_write_head_position)
-        return position;
+       return position;
     //printf("Setting position to %d\n", position);
     //printf("File size is %d\n", file_size);
     if ((file_size == 0 && position > 0) || (file_size > 0 && position >= file_size))
@@ -63,7 +63,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
         size = file_size - read_write_head_position;
     seek(0, CUR); // To update the position (O(1))
     size_t read_size = size;
-    //printf("Reading %d bytes\n", size);
+    printf("Reading %d bytes\n", size);
     
     // Read the remaining of the current cluster
     size_t remaining_in_cluster = fat_fs->cluster_size - read_write_head_position_within_cluster;
@@ -74,7 +74,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
     read_write_head_position_within_cluster = 0;
     size -= remaining_in_cluster;
 
-    //printf("Read %d bytes\n", remaining_in_cluster);
+    printf("Read %d bytes\n", remaining_in_cluster);
 
     // Read the remaining clusters
     while(size >= fat_fs->cluster_size) {
@@ -92,7 +92,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
         read_write_head_position_cluster_number = current_cluster;
         size -= fat_fs->cluster_size;
 
-        //printf("Read %d bytes\n", fat_fs->cluster_size);
+        printf("Read %d bytes\n", fat_fs->cluster_size);
     }
 
     // Read the remaining of the last cluster
@@ -111,7 +111,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
         read_write_head_position_within_cluster = size;
         read_write_head_position_cluster_number = current_cluster;
 
-        //printf("Read %d bytes\n", size);
+        printf("Read %d bytes\n", size);
     }
 
     return read_size;

@@ -153,6 +153,8 @@ x64::TSS* ptss;
 interrupt_manager* pimngr;
 serial::portdriver* ser0_drv;
 
+fs* vfs;
+
 extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, uint64_t kernel_zero)  {
 	x64::enable_sse();
 	x64::enable_xsave();   
@@ -184,7 +186,7 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, u
 
 	
 	ser0_drv = new serial::portdriver(0x3f8); // Stable stdout
-	smallptr<filehandler> fh = ser0_drv->get_file(WRONLY);
+	smallptr<filehandler> fh = ser0_drv->get_file(RW);
 	stdout = fh.ptr;
 	fh.ptr = nullptr;	
 
@@ -216,6 +218,15 @@ extern "C" void kernel_early_main(x64::linaddr istack, memory_map_entry* mmap, u
 
 	printf("kernel_zero was %p\n", kernel_zero);
 
+}
+
+void pwd(dir_iterator* it) {
+	dirlist_token dt = it->list();
+	dirlist_token* current_tok = &dt;
+	do {
+		puts(current_tok->name.c_str());
+		current_tok = current_tok->next.ptr;
+	} while (current_tok != nullptr);
 }
 
 extern "C" void kernel_main() {	
@@ -267,11 +278,11 @@ extern "C" void kernel_main() {
 	auto td = vga::text_driver();
 	td.clear();
 	dev_fsys.attach_tty(smallptr<vga::text_driver>(new vga::text_driver()));
-	filesystem.mnts[0].fsys = &dev_fsys;
-	filesystem.mnts[0].mountpath = std::move(string("/dev"));
+	filesystem.mount(&dev_fsys, "/dev");
+
+	vfs = &filesystem;
 
 	auto* it = filesystem.get_iterator();
-
 	printf("Current path %s\n", it->get_canonical_path().c_str());
 
 	if((*it << "dev") != DIR_ENTRY) {
@@ -324,37 +335,9 @@ extern "C" void kernel_main() {
 	ahci::driver drv(f.ptr);
 	auto nf = ahci::file(RW, 0, &drv);
 
-	unsigned char lol[512];
-	puts("Before read");
-	nf.read(lol, 512);
-	puts("Boot sector of drive :");
-	for(int i = 0; i < 512; ++i) {
-		auto c = (lol[i] >= 32 && lol[i] < 128) ? lol[i] : '.'; 
-		if(i % 16 == 15) {
-			printf("%c\n",c);
-		} else {
-			putchar(c);
-		}
-	} 
-	nf.seek(0, SET);
-	strcpy((char*)lol, "Trash! Trash everywhere in this drive!"); 
-	nf.seek(0, SET);
-	fputs("Mdr lol", &nf);
-	nf.seek(0, SET);
-	nf.read(lol, 512);
-	nf.seek(0, SET);
-	puts("Boot sector of drive :");
-	for(int i = 0; i < 512; ++i) {
-		auto c = (lol[i] >= 32 && lol[i] < 128) ? lol[i] : '.'; 
-		if(i % 16 == 15) {
-			printf("%c\n",c);
-		} else {
-			putchar(c);
-		}
-	} 
-
-
 	FAT::filesystem fat_testfs(&nf, true);
+	filesystem.mount(&fat_testfs, "/home");
+
     size_t read_number_of_bytes, written_number_of_bytes;
     auto* fat_it = fat_testfs.get_iterator();
     //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
@@ -473,30 +456,52 @@ extern "C" void kernel_main() {
     }
     puts("File system : TEST 4 PASSED");
 
-	dirlist_token dt = fat_it->list();
-	dirlist_token* current_tok = &dt;
-	puts("survived listing");
-	do {
-		puts(current_tok->name.c_str());
-		current_tok = current_tok->next.ptr;
-	} while (current_tok != nullptr);
+	pwd(it);
+	*it << "home";
+	printf("/home :\n");
+	pwd(it);	
+	*it << "fatimage";
+	printf("/home/fatimage :\n");
+	pwd(it);
+
+	*it << "..";
+	*it << "..";
+	*it << "dev";
+
+	auto tty = it->open_file("tty0", WRONLY);
 
 	smallptr<filehandler> objfile = fat_it->open_file("test.elf", RW);
-	proc process(objfile.ptr, stdout);	
+	uint32_t* buffer2 = new uint32_t[9000];
+	objfile.ptr->read(buffer2, 32*32);
+	
+	printf("Small read :\n");
+	for(int i = 0; i < 32; ++i) {
+		printf("%x\n", buffer2[i]);
+	}
+	objfile.ptr->seek(0, SET);
+	objfile.ptr->read(buffer2, 9000);
+	puts("Large read :");
+	for(int i = 0; i < 32; ++i) {
+		printf("%x\n", buffer2[i]);
+	}
+	/*smallptr<filehandler> objfile2 = fat_it->open_file("test2.elf", RW);
+	proc process(objfile.ptr, tty.ptr, stdout);	
 	init[0] = &process;
 
+	printf("Process 2\n");
 	objfile.ptr->seek(0, SET);
-	proc process2(objfile.ptr, stdout);	
+	proc process2(objfile.ptr, stdout, nullptr);	
 	init[1] = &process2;
+	printf("Process 3\n");
 	objfile.ptr->seek(0, SET);
-	proc process3(objfile.ptr, stdout);	
+	proc process3(objfile.ptr, stdout, nullptr);	
 	init[2] = &process3;
 
 	puts("Launching userspace soon (tm)");
 
 	pimngr->apic_base()[0x320/4] &= ~(1ul << 16);// Setup APIC on "base" interrupt;
 	pimngr->apic_base()[0x3e0/4] = 0;
-	pimngr->apic_base()[0x380/4] = 1 << 28;
+	pimngr->apic_base()[0x380/4] = 1 << 28;*/
 	while(true) {}	
 	puts("Should have become unreacheable.");
 	halt();
