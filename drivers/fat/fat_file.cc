@@ -69,12 +69,14 @@ size_t FAT_file::read(void* buffer, size_t size) {
     size_t remaining_in_cluster = fat_fs->cluster_size - read_write_head_position_within_cluster;
     if (remaining_in_cluster > size)
         remaining_in_cluster = size;
-    fat_fs->fh->read(buffer, remaining_in_cluster);
+    fat_fs->fh->read(buffer+read_write_head_position, remaining_in_cluster);
     read_write_head_position += remaining_in_cluster;
     read_write_head_position_within_cluster = 0;
     size -= remaining_in_cluster;
 
     printf("Read %d bytes\n", remaining_in_cluster);
+
+    return read_size;
 
     // Read the remaining clusters
     while(size >= fat_fs->cluster_size) {
@@ -87,7 +89,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
-        fat_fs->fh->read(buffer, fat_fs->cluster_size);
+        fat_fs->fh->read(buffer+read_write_head_position, fat_fs->cluster_size);
         read_write_head_position += fat_fs->cluster_size;
         read_write_head_position_cluster_number = current_cluster;
         size -= fat_fs->cluster_size;
@@ -106,7 +108,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
             throw logic_error("Bad cluster");
         else if (current_cluster > fat_fs->number_of_clusters)
             throw logic_error("This cluster is reserved");
-        fat_fs->fh->read(buffer, size);
+        fat_fs->fh->read(buffer+read_write_head_position, size);
         read_write_head_position += size;
         read_write_head_position_within_cluster = size;
         read_write_head_position_cluster_number = current_cluster;
@@ -144,7 +146,7 @@ size_t FAT_file::write(const void* buffer, size_t size) {
         read_write_head_position_cluster_number = first_cluster_number;
         fat_fs->fh->seek(fat_fs->cluster_number_to_address(first_cluster_number), SET);
     }
-    fat_fs->fh->write(buffer, remaining_in_cluster_or_buffer);
+    fat_fs->fh->write(buffer+write_size, remaining_in_cluster_or_buffer);
     read_write_head_position += remaining_in_cluster_or_buffer;
     read_write_head_position_within_cluster = 0;
     size -= remaining_in_cluster_or_buffer;
@@ -182,7 +184,7 @@ size_t FAT_file::write(const void* buffer, size_t size) {
                 fat_fs->fh->seek(fat_fs->cluster_number_to_address(current_cluster), SET);
         }
         
-        fat_fs->fh->write(buffer, fat_fs->cluster_size);
+        fat_fs->fh->write(buffer+write_size, fat_fs->cluster_size);
         read_write_head_position += fat_fs->cluster_size;
         read_write_head_position_cluster_number = current_cluster;
         size -= fat_fs->cluster_size;
@@ -220,7 +222,7 @@ size_t FAT_file::write(const void* buffer, size_t size) {
                 fat_fs->fh->seek(fat_fs->cluster_number_to_address(current_cluster), SET);
         }
 
-        fat_fs->fh->write(buffer, size);
+        fat_fs->fh->write(buffer+write_size, size);
         read_write_head_position += size;
         read_write_head_position_within_cluster = size;
         read_write_head_position_cluster_number = current_cluster;
