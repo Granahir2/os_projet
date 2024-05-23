@@ -680,6 +680,7 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
     }
 }
 
+/*
 void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t current_cluster) 
 {
     // First, we have to make sure that no already existing file or folder has the same name
@@ -817,7 +818,7 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
         // If there is none, we throw error that file is not found
         if (next_cluster >= fat_fs->LAST_CLUSTER || next_cluster == 0)
         {
-            
+
         }
         // Else, we set the current cluster to the next cluster, and repeat
         else 
@@ -835,5 +836,6 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
         }
     }
 }
+//*/
 
 }
