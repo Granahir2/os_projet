@@ -85,7 +85,7 @@ public:
     size_t depth();
     string operator[](size_t index);
     smallptr<file> open_file(const char* file_name, int mode, size_t current_cluster = SIZE_MAX);
-    void create_file(const char* file_name, bool is_dir = false, size_t current_cluster = SIZE_MAX);
+    void create_file(const char* file_name, bool is_dir = false, size_t current_cluster = SIZE_MAX, bool checked = false);
     dirlist_token list(size_t current_cluster = SIZE_MAX, dirlist_token* filename_list_head = nullptr, dirlist_token* filename_list_tail = nullptr);
 
 private:
