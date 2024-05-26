@@ -25,7 +25,7 @@ public:
 			memcpy(&buffer[curr_offset], src, delta);
 			curr_offset += delta;
 			return delta;
-		} else {
+		} else {	
 			memcpy(&buffer[curr_offset], src, s);
 			curr_offset += s;
 			return s;
@@ -51,7 +51,7 @@ public:
 private:
 	smallptr<unsigned char[]> buffer;
 	off_t curr_offset;
-	size_t size;
+	const size_t size;
 };
 
 using memfile = perm_fh<_memf>;

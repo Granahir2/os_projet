@@ -1,6 +1,7 @@
 #include "devfs.hh"
 #include "kstdlib/cstdlib.hh"
 #include "kstdlib/cstdio.hh"
+#include "memf.hh"
 
 drit_status _devfs_dit::push(const char* str) {	
 	if(str == strstr(str, "ser")) {
@@ -32,6 +33,28 @@ smallptr<filehandler> _devfs_dit::open_file(const char* str, int mode) {
 
 devfs_dit* devfs::get_iterator() {
 	return new devfs_dit(this);
+}
+
+dirlist_token _devfs_dit::list() {
+	dirlist_token *curr = nullptr;
+	for(int i = 0; i < 32; ++i) {
+		if(parent->pdarr[i]) {
+			memfile f(RW, 30);
+			fprintf(&f, "ser%d\0", i);
+			char buf[10];
+			buf[9] = '\0';
+			f.seek(0, SET);
+			f.read(&buf[0], 10);
+			curr = new dirlist_token{buf, false, curr};
+		}
+	}
+
+	if(parent->td) {
+		curr = new dirlist_token{"tty0", false, curr};
+	}
+	if(curr == nullptr) {throw empty_directory();}
+	dirlist_token base = {curr->name, curr->is_directory, std::move(curr->next), curr->file_size};
+	return base;
 }
 
 bool devfs::attach_serial(smallptr<serial::portdriver>&& x) {

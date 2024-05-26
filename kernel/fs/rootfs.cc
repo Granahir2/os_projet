@@ -32,23 +32,23 @@ drit_status rootfs_dit::operator<<(const char* str) {
 				assert(p, "[rootfs] readlink() failed");
 
 				if(p[0] == '/') {
-					auto it = parent->get_iterator();
+					smallptr<rootfs_dit> it = parent->get_iterator();
 					auto* curr = p+1;
 					auto* next = strchr(p+1, '/');
 					for(;next != nullptr; curr = next+1, next = strchr(next+1, '/')) {
 						*next = '\0';
-						if((*it) << curr != DIR_ENTRY) {return NP;}
+						if((*it.ptr) << curr != DIR_ENTRY) {return NP;}
 						// Feed all the components one by one, checking link isn't broken
 					}
-					if((*it) << curr != DIR_ENTRY) {return NP;}
+					if((*it.ptr) << curr != DIR_ENTRY) {return NP;}
 			
 					// Swap the contents of it and this	
-					auto t = it->stk_top;
-					it->stk_top = stk_top;
+					auto t = it.ptr->stk_top;
+					it.ptr->stk_top = stk_top;
 					stk_top = t;	
 					for(int i = 0; i < 32; ++i) {
-						auto tmp = it->drit_stk[i];
-						it->drit_stk[i] = drit_stk[i];
+						auto tmp = it.ptr->drit_stk[i];
+						it.ptr->drit_stk[i] = drit_stk[i];
 						drit_stk[i] = tmp;
 					}
 				} else {

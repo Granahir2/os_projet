@@ -47,9 +47,9 @@ FORCE:
 test: os.iso fattest.raw
 	qemu-system-x86_64 -cdrom os.iso -m 4G -serial stdio -drive id=disk,file=fattest.raw,if=none,format=raw \
 -device ahci,id=ahci \
--device ide-hd,drive=disk,bus=ahci.0 -boot order=dc
+-device ide-hd,drive=disk,bus=ahci.0 -boot order=dc | tee log.txt
 debug: os.iso fattest.raw
-	qemu-system-x86_64 -cdrom os.iso -s -S -monitor stdio -no-shutdown -no-reboot -d int \
+	qemu-system-x86_64 -cdrom os.iso -s -S -serial stdio -no-shutdown -no-reboot \
 -drive id=disk,file=fattest.raw,if=none,format=raw \
 -device ahci,id=ahci \
 -device ide-hd,drive=disk,bus=ahci.0 -boot order=dc 2>&1 | tee log.txt

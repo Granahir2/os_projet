@@ -14,6 +14,7 @@ public:
 	size_t depth() {return 0;}
 	string operator[](size_t) {return string();}
 	smallptr<filehandler> open_file(const char* s, int mode);
+	dirlist_token list();
 private:
 	devfs* parent = nullptr;
 };

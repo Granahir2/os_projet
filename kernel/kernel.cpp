@@ -342,12 +342,12 @@ extern "C" void kernel_main() {
     //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
     *fat_it << "fatimage";
     //printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
-    *fat_it << "superduperultramegalongdirectoryname"; // BUG : we don't detect this as a directory
+    *fat_it << "superduperultramegalongdirectoryname"; 
     printf("Current path : %s\n", fat_it->get_canonical_path().c_str());
     *fat_it << "..";
     printf("Current path : %s\n", fat_it->get_canonical_path().c_str()); // We end up at the root
-    drit_status status = (*fat_it << "longnamestresstest.txt"); // This directory lookup *fails* by seeking out of the filesystem entirely
-    puts("Looked up longnamestresstest.txt"); // If lines 299 to 301 are commented out (no desync), we get further along the tests (pass TEST 1) but eventually fail for similar reasons
+    drit_status status = (*fat_it << "longnamestresstest.txt");
+    puts("Looked up longnamestresstest.txt");
     if (status == DIR_ENTRY) {
         puts("longnamestresstest.txt is a directory !");
     } else if (status == NP) {
