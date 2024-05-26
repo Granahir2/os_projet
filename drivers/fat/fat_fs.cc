@@ -286,12 +286,16 @@ void FAT_FileSystem::write_fat_entry(size_t cluster_number, size_t FATEntry, uns
     else throw logic_error("Invalid FAT type\n");
 }
 
-void FAT_FileSystem::acquire_lock() {
+locktoken FAT_FileSystem::acquire_lock() {
 	while(lock) {}
 	
 	pimngr->disable();
-	if(lock) {pimngr->enable(); acquire_lock();} // We failed due to a race condition
-	else {lock = true; pimngr->enable();} 
+	if(lock) {pimngr->enable(); return acquire_lock();} // We failed due to a race condition
+	else {lock = true; pimngr->enable();
+		locktoken retval;
+		retval.parent = this;
+		return retval;
+	} 
 }
 
 void FAT_FileSystem::release_lock() {

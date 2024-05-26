@@ -334,7 +334,6 @@ extern "C" void kernel_main() {
 	smallptr<filehandler> f = conf_space.get_file(0b100000, RW);
 	ahci::driver drv(f.ptr);
 	auto nf = ahci::file(RW, 0, &drv);
-
 	FAT::filesystem fat_testfs(&nf, true);
 	filesystem.mount(&fat_testfs, "/home");
 

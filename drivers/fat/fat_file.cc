@@ -57,6 +57,8 @@ off_t FAT_file::set_position(size_t position) {
 }
 
 size_t FAT_file::read(void* buffer, size_t size) {
+    locktoken lt = fat_fs->acquire_lock();
+
     //printf("Read-write head position: %d\n", read_write_head_position);
     //printf("File size: %d\n", file_size);
     //printf("Size: %d\n", size);
@@ -120,6 +122,7 @@ size_t FAT_file::read(void* buffer, size_t size) {
 }
 
 size_t FAT_file::write(const void* buffer, size_t size) {
+    locktoken lt = fat_fs->acquire_lock();
     size_t write_size = 0;
     
     // Write the remaining of the current cluster
@@ -239,7 +242,8 @@ size_t FAT_file::write(const void* buffer, size_t size) {
 }
 
 off_t FAT_file::seek(off_t offset, seekref whence) {
-    switch(whence) {
+   locktoken lt = fat_fs->acquire_lock();
+   switch(whence) {
         case SET:
             return set_position(offset);
             break;

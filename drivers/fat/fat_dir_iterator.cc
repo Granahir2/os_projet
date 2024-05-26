@@ -12,6 +12,7 @@ FAT_dir_iterator::FAT_dir_iterator(FAT_FileSystem* fat_fs, int initial_stack_siz
         first_cluster_of_current_directory(fat_fs->BPB_RootClus) {}
 
 drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cluster) {
+    locktoken lt = fat_fs->acquire_lock();
     if (stack_pointer == stack_size) 
         throw runtime_error("Stack overflow");
     
@@ -222,6 +223,7 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
 }
 
 void FAT_dir_iterator::pop() {
+    locktoken lt = fat_fs->acquire_lock();
     if (stack_pointer == 0)
         throw runtime_error("Stack underflow");
     stack_pointer--;
@@ -242,6 +244,7 @@ string FAT_dir_iterator::operator[](size_t index) {
 }
 
 smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size_t current_cluster) {
+    locktoken lt = fat_fs->acquire_lock();
     // Traverse through directory to find the file
     FAT_dir_entry DirEntry;
     FAT_Long_File_Name_entry LFNEntry;
@@ -448,6 +451,7 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
 
 dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* filename_list_head, dirlist_token* filename_list_tail)
 {
+    locktoken lt = fat_fs->acquire_lock();
     // Traverse through directory to find the file
     FAT_dir_entry DirEntry;
     FAT_Long_File_Name_entry LFNEntry;
@@ -684,6 +688,7 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
 //*
 void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t current_cluster, bool checked) 
 {
+    locktoken lt = fat_fs->acquire_lock();
     // First, we have to make sure that no already existing file or folder has the same name
     if (not checked)
     {

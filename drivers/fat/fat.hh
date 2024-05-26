@@ -100,9 +100,12 @@ private:
 };
 
 using dit = coh_dit<FAT::FAT_dir_iterator>;
+struct locktoken;
+
 class FAT_FileSystem : public fs {
 friend FAT_dir_iterator;
 friend FAT_file;
+friend locktoken;
 public:
     FAT_FileSystem(filehandler* fh, bool verbose = false);
     dit* get_iterator() { return new dit(this);}
@@ -140,9 +143,15 @@ private:
     void write_fat_entry(size_t cluster_number, size_t value, unsigned int FatNumber = 0);
 
     volatile bool lock = false;
-    void acquire_lock();
+
     void release_lock();
+    locktoken acquire_lock();
 };  
+
+struct locktoken {
+	~locktoken() {parent->release_lock();}
+	FAT_FileSystem* parent;
+};
 
 using filesystem = FAT_FileSystem;
 
