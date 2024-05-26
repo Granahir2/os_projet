@@ -71,12 +71,12 @@ public:
                 ready_queue_head(nullptr), 
                 ready_queue_tail(nullptr), 
                 ready_queue_iterator(nullptr), 
-                graph_is_up_to_date(true), 
-                weights_are_up_to_date(true),
-                waiting_for_report(false),
                 cycle_counter(0),
                 initial_weight(ini_weight), 
-                number_of_cycles_per_update(number_of_cycles_per_update) {}
+                number_of_cycles_per_update(number_of_cycles_per_update),
+                graph_is_up_to_date(true), 
+                weights_are_up_to_date(true),
+		waiting_for_report(false) {}
 private:
     map<uint16_t, graphnode*> pid_to_node_pointer;
     map<uint16_t, bool> visited;

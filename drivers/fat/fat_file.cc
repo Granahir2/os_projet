@@ -65,7 +65,6 @@ size_t FAT_file::read(void* buffer, size_t size) {
     seek(0, CUR); // To update the position (O(1))
     size_t write_head_position_in_buffer = 0;
     size_t read_size = size;
-    printf("Reading %d bytes\n", size);
     
     // Read the remaining of the current cluster
     size_t remaining_in_cluster = fat_fs->cluster_size - read_write_head_position_within_cluster;
@@ -76,8 +75,6 @@ size_t FAT_file::read(void* buffer, size_t size) {
     write_head_position_in_buffer += remaining_in_cluster;
     read_write_head_position_within_cluster = 0;
     size -= remaining_in_cluster;
-
-    printf("Read %d bytes\n", remaining_in_cluster);
 
     // Read the remaining clusters
     while(size >= fat_fs->cluster_size) {
@@ -97,7 +94,6 @@ size_t FAT_file::read(void* buffer, size_t size) {
         read_write_head_position_cluster_number = current_cluster;
         size -= fat_fs->cluster_size;
 
-        printf("Read %d bytes\n", fat_fs->cluster_size);
     }
 
     // Read the remaining of the last cluster
@@ -118,7 +114,6 @@ size_t FAT_file::read(void* buffer, size_t size) {
         read_write_head_position_within_cluster = size;
         read_write_head_position_cluster_number = current_cluster;
 
-        printf("Read %d bytes\n", size);
     }
 
     return read_size;
@@ -126,8 +121,6 @@ size_t FAT_file::read(void* buffer, size_t size) {
 
 size_t FAT_file::write(const void* buffer, size_t size) {
     size_t write_size = 0;
-    //printf("Writing %d bytes\n", size);
-    //set_position(read_write_head_position); // The position is already set and setting it is O(N)
     
     // Write the remaining of the current cluster
     size_t remaining_in_cluster_or_buffer = fat_fs->cluster_size - read_write_head_position_within_cluster;
@@ -151,7 +144,7 @@ size_t FAT_file::write(const void* buffer, size_t size) {
         read_write_head_position_cluster_number = first_cluster_number;
         fat_fs->fh->seek(fat_fs->cluster_number_to_address(first_cluster_number), SET);
     }
-    fat_fs->fh->write(buffer+write_size, remaining_in_cluster_or_buffer);
+    fat_fs->fh->write((uint8_t*)(buffer)+write_size, remaining_in_cluster_or_buffer);
     read_write_head_position += remaining_in_cluster_or_buffer;
     read_write_head_position_within_cluster = 0;
     size -= remaining_in_cluster_or_buffer;
@@ -189,13 +182,12 @@ size_t FAT_file::write(const void* buffer, size_t size) {
                 fat_fs->fh->seek(fat_fs->cluster_number_to_address(current_cluster), SET);
         }
         
-        fat_fs->fh->write(buffer+write_size, fat_fs->cluster_size);
+        fat_fs->fh->write((uint8_t*)(buffer)+write_size, fat_fs->cluster_size);
         read_write_head_position += fat_fs->cluster_size;
         read_write_head_position_cluster_number = current_cluster;
         size -= fat_fs->cluster_size;
         write_size += fat_fs->cluster_size;
 
-        //printf("Wrote %d bytes\n", fat_fs->cluster_size);
     }
 
     // Write the remaining of the last cluster
@@ -227,13 +219,12 @@ size_t FAT_file::write(const void* buffer, size_t size) {
                 fat_fs->fh->seek(fat_fs->cluster_number_to_address(current_cluster), SET);
         }
 
-        fat_fs->fh->write(buffer+write_size, size);
+        fat_fs->fh->write((uint8_t*)buffer+write_size, size);
         read_write_head_position += size;
         read_write_head_position_within_cluster = size;
         read_write_head_position_cluster_number = current_cluster;
         write_size += size;
 
-        //printf("Wrote %d bytes\n", size);
     }
 
     // Update the file size if necessary

@@ -8,7 +8,7 @@ struct dirlist_token {
 	string name;
 	bool is_directory;
 	smallptr<dirlist_token> next;
-    uint32_t file_size;
+	size_t file_size = -1ull;
 };
 
 typedef uint16_t mode_t;

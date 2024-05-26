@@ -111,8 +111,6 @@ public:
     void write(const void* buffer, size_t size);
 
 private:
-    //dit* dit_ptr;
-
     size_t FATSz;
     filehandler* fh;
     short FATType;

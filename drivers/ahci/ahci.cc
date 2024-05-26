@@ -109,7 +109,7 @@ int port_drv::start_read(volatile void* buffer, size_t at, uint16_t numsec) {
 	read.count = numsec;
 
 	uint32_t curr_running = port->command_issue;
-	int slot = 0;
+	unsigned slot = 0;
 	for(; slot <= ((p->hmem->capability >> 8) & 0x1f) && (curr_running >> (slot) & 1); ++slot) {}
 	if(slot > (p->hmem->capability >> 8 & 0x1f)) {throw ebusy();}
 
@@ -133,7 +133,7 @@ int port_drv::start_write(volatile const void* buffer, size_t at, uint16_t numse
 	write.count = numsec;
 
 	uint32_t curr_running = port->command_issue;
-	int slot = 0;
+	unsigned slot = 0;
 	for(; slot <= ((p->hmem->capability >> 8) & 0x1f) && (curr_running >> (slot) & 1); ++slot) {}
 	if(slot > (p->hmem->capability >> 8 & 0x1f)) {throw ebusy();}
 

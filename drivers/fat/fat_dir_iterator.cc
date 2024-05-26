@@ -7,9 +7,9 @@ namespace FAT {
 FAT_dir_iterator::FAT_dir_iterator(FAT_FileSystem* fat_fs, int initial_stack_size) :
         stack_pointer(0), 
         stack_size(initial_stack_size), 
+        short_file_name_counter(0),
         fat_fs(fat_fs), 
-        first_cluster_of_current_directory(fat_fs->BPB_RootClus), 
-        short_file_name_counter(0) {}
+        first_cluster_of_current_directory(fat_fs->BPB_RootClus) {}
 
 drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cluster) {
     if (stack_pointer == stack_size) 
@@ -118,7 +118,7 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
 
                     // Found the directory
                     this->first_cluster_of_current_directory = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    stack[stack_pointer++] = {DirEntry, basic_string(directory_name), fat_fs->fh->seek(-32, CUR)};
+                    stack[stack_pointer++] = {DirEntry, basic_string(directory_name), (size_t)fat_fs->fh->seek(-32, CUR)};
                     return DIR_ENTRY;
                 }
             }
@@ -211,7 +211,7 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
 
                     // Found the directory
                     this->first_cluster_of_current_directory = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    stack[stack_pointer++] = {DirEntry, basic_string(directory_name), fat_fs->fh->seek(-32, CUR)};
+                    stack[stack_pointer++] = {DirEntry, basic_string(directory_name), (size_t)fat_fs->fh->seek(-32, CUR)};
                     return DIR_ENTRY;
                 }
             }
@@ -703,7 +703,7 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
     // Which is the pain in the butt
 
     uint8_t empty_entries_count = 0;
-    uint8_t beginning_of_empty_entries;
+    uint8_t beginning_of_empty_entries = 0;
     uint8_t first_name_byte;
     
     if (fat_fs->FATType == FAT32 || stack_pointer > 0) // If it is not root directory or FAT32
@@ -727,7 +727,7 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
             }
             else if (first_name_byte == 0)
             {
-                if (fat_fs->number_of_entries_per_cluster - i >= number_of_LFN_entries + 1) 
+                if (fat_fs->number_of_entries_per_cluster >= (size_t)(number_of_LFN_entries + i + 1))
                 {
                     empty_entries_count = number_of_LFN_entries + 1;
                     beginning_of_empty_entries = start_address + i*fat_fs->cluster_size;
@@ -794,13 +794,13 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
 
             // Then we create the LFN entries for the file name.
             FAT_Long_File_Name_entry LFN[number_of_LFN_entries];
-            uint16_t offset = 0;
+            size_t offset = 0;
             for (uint16_t i = 0; i < number_of_LFN_entries; i++)
             {
                 LFN[i].LDIR_Ord = i + 1;
                 LFN[i].LDIR_Attr = ATTR_LONG_NAME;
                 LFN[i].LDIR_FstClusLO = 0;
-                LFN[i].LDIR_Chksum;
+                LFN[i].LDIR_Chksum = checksum;
                 if (offset + 5 > s.length())
                 {
                     for (uint8_t j = 0; j < s.length() - offset; j++) LFN[i].LDIR_Name1[j] = s[j + offset];
@@ -844,7 +844,7 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
             LFN[number_of_LFN_entries - 1].LDIR_Ord |= 0x40;
 
             fat_fs->fh->seek(beginning_of_empty_entries, SET);
-            for (uint8_t i = number_of_LFN_entries - 1; i >= 0; i--)
+            for (int i = number_of_LFN_entries - 1; i >= 0; i--)
             {
                 fat_fs->fh->write(&LFN[i], sizeof(LFN[i]));
             }
@@ -869,7 +869,7 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
             }
             else if (first_name_byte == 0)
             {
-                if (fat_fs->number_of_entries_per_cluster - i >= number_of_LFN_entries + 1) 
+                if (fat_fs->number_of_entries_per_cluster >= number_of_LFN_entries + (size_t)i + 1) 
                 {
                     empty_entries_count = number_of_LFN_entries + 1;
                     beginning_of_empty_entries = fat_fs->root_directory_begin_address_for_FAT12_and_FAT16 + i*fat_fs->cluster_size;
@@ -927,13 +927,13 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
 
             // Then we create the LFN entries for the file name.
             FAT_Long_File_Name_entry LFN[number_of_LFN_entries];
-            uint16_t offset = 0;
+            size_t offset = 0;
             for (uint16_t i = 0; i < number_of_LFN_entries; i++)
             {
                 LFN[i].LDIR_Ord = i + 1;
                 LFN[i].LDIR_Attr = ATTR_LONG_NAME;
                 LFN[i].LDIR_FstClusLO = 0;
-                LFN[i].LDIR_Chksum;
+                LFN[i].LDIR_Chksum = checksum; // Unsure
                 if (offset + 5 > s.length())
                 {
                     for (uint8_t j = 0; j < s.length() - offset; j++) LFN[i].LDIR_Name1[j] = s[j + offset];
@@ -977,7 +977,7 @@ void FAT_dir_iterator::create_file(const char* file_name, bool is_dir, size_t cu
             LFN[number_of_LFN_entries - 1].LDIR_Ord |= 0x40;
 
             fat_fs->fh->seek(beginning_of_empty_entries, SET);
-            for (uint8_t i = number_of_LFN_entries - 1; i >= 0; i--)
+            for (int i = number_of_LFN_entries - 1; i >= 0; i--)
             {
                 fat_fs->fh->write(&LFN[i], sizeof(LFN[i]));
             }

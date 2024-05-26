@@ -56,7 +56,7 @@ proc::proc(filehandler* loadfrom, filehandler* stdo, filehandler* stdi) {
 		x64::load_cr3(context.cr3);
 		loadfrom->seek(phead.file_off, SET);
 		size_t s = loadfrom->read((void*)(start_addr), phead.filesz);
-		printf("Loaded %lu bytes to %p from offset %lx\n", phead.filesz, start_addr, phead.file_off);
+		//printf("Loaded %lu bytes to %p from offset %lx\n", phead.filesz, start_addr, phead.file_off);
 		if(s != phead.filesz) {throw runtime_error("Could not read whole section");}
 		memset((uint8_t*)(start_addr) + phead.filesz, 0, phead.memsz - phead.filesz);
 		currpos += head.ph_entry_size;

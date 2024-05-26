@@ -16,7 +16,7 @@ size_t f_pdrv_naive::read(void* buffer, size_t cnt) {
 	int to_rd = cnt < 4096 ? ((cnt+511)/512) : 4096/512;
 	int c = internal.start_read((volatile void*)(vpage), begin_lba, to_rd);
 	while(!internal.check_on_read(c));
-	int payload = cnt < (4096 - (pos%512)) ? cnt : (4096 - pos % 512);
+	unsigned payload = cnt < (4096 - (pos%512)) ? cnt : (4096 - pos % 512);
 	memcpy(buffer, (uint8_t*)(vpage) + (pos % 512), payload);
 	pos += payload;
 	release_phpage(page);
@@ -31,7 +31,7 @@ size_t f_pdrv_naive::write(const void* buffer, size_t cnt) {
 	x64::phaddr page = get_phpage();
 	auto vpage = (uint8_t*)(page - 512*1024*1024*1024ul);
 	
-	int iter_size = (cnt < (4096 - pos%512)) ? cnt : (4096 - pos%512);
+	unsigned iter_size = (cnt < (4096 - pos%512)) ? cnt : (4096 - pos%512);
 	// Useful payload is from pos%512 to (iter_size - 1) + pos%512
 	int last_offset = iter_size - 1 + pos%512;
 
@@ -51,7 +51,7 @@ size_t f_pdrv_naive::write(const void* buffer, size_t cnt) {
 	int c3 = internal.start_write((volatile const void*)(vpage), begin_lba, (last_offset + 511)/512);
 	while(!internal.check_on_read(c3)) {}	
 	// We don't need to synchronise IF the HBA implementation ensures issue-order dispatch.
-	// This is optional... If we want to be strict, add a synchro fence here.
+	// This is optional... If we want to be strict, use the synchro fence there.
 	pos += iter_size;
 	release_phpage(page);
 	if(iter_size != cnt) {
