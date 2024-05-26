@@ -1,5 +1,6 @@
 #include "kstdlib/stdexcept.hh"
 #include "kernel/fs/fs.hh"
+#include "kernel/kernel.hh"
 #include "fat.hh"
 #include "kstdlib/cstdio.hh"
 
@@ -283,6 +284,18 @@ void FAT_FileSystem::write_fat_entry(size_t cluster_number, size_t FATEntry, uns
         fh->write(&FATEntry, 4);
     }
     else throw logic_error("Invalid FAT type\n");
+}
+
+void FAT_FileSystem::acquire_lock() {
+	while(lock) {}
+	
+	pimngr->disable();
+	if(lock) {pimngr->enable(); acquire_lock();} // We failed due to a race condition
+	else {lock = true; pimngr->enable();} 
+}
+
+void FAT_FileSystem::release_lock() {
+	lock = false;
 }
 
 }

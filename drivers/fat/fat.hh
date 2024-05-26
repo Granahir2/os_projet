@@ -138,6 +138,10 @@ private:
     size_t cluster_number_to_fat_entry_index(size_t cluster_number, unsigned int FatNumber = 0);
     size_t find_free_cluster(size_t last_cluster_number);
     void write_fat_entry(size_t cluster_number, size_t value, unsigned int FatNumber = 0);
+
+    volatile bool lock = false;
+    void acquire_lock();
+    void release_lock();
 };  
 
 using filesystem = FAT_FileSystem;
