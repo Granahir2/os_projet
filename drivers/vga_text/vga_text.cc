@@ -12,7 +12,13 @@ size_t text_handle::write(const void* buf, size_t cnt) {
 				if(++(parent->curr_col) != ncol) { break; }
 			[[fallthrough]];
 			case '\n':
-				parent->do_scroll();
+				parent->do_scroll(); break;
+			case '\177': // Backspace
+				{c=' '; q[-1] = (uint16_t)(c) | (curr_color << 8);
+				 if(parent->curr_col-- == 0) {
+				 	parent->scroll_back();
+				 }
+				} // Delete it
 		}
 	}
 	return cnt;
@@ -39,6 +45,23 @@ void text_driver::do_scroll() {
 		// Clear the line we just displayed at the bottom of the screen
 		uint16_t last_line_off = curr_offset + (nrow - 1)*ncol;
 		memset((uint16_t *)(buff_addr) + last_line_off, 0, nrow*sizeof(uint16_t));
+	}
+}
+
+void text_driver::scroll_back() {
+	curr_col = ncol - 1;
+	if(curr_row-- == 0) {
+		curr_row = 0;
+		curr_offset -= ncol;
+		curr_offset %= (1 << 14);
+
+
+		x64::outb(0x3d4, 0x0d);
+		x64::outb(0x3d5, curr_offset & 0xff);
+		x64::outb(0x3d4, 0x0c);
+		x64::outb(0x3d5, (curr_offset >> 8) & 0xff);
+
+		// We do NOT clear the line at the top of the screen : it may be displaying previous info.
 	}
 }
 

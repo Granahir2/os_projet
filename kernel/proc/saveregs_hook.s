@@ -93,5 +93,7 @@ loadregs_hook:
 .type syscall_hook, @function
 .align 8
 syscall_hook:
+	sub $8, %rsp
 	call syscall_main
+	add $8, %rsp 
 	iretq

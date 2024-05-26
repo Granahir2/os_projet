@@ -65,6 +65,7 @@ public:
 	unsigned int curr_offset = 0; // Offset in VGA memory.
 private:
 	void do_scroll();
+	void scroll_back();
 	size_t refcnt = 0;
 };
 }

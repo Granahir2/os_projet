@@ -19,6 +19,8 @@ When destroyed, the filehandler gracefully closes the file.
 
 #include "concepts.hh"
 
+_STDEXCEPT(empty_directory, runtime_error)
+
 class filehandler {
 
 // perm_fh (defined in templates.hh) wraps an object which implements a file to give

@@ -115,7 +115,6 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
                     // Check if it is a directory
                     if (!(DirEntry.DIR_Attr & ATTR_DIRECTORY))
                         return FILE_ENTRY;
-                        //throw runtime_error("Found a file with matching name, but it is not a directory");
 
                     // Found the directory
                     this->first_cluster_of_current_directory = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
@@ -130,7 +129,6 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
         // If there is none, we throw error that directory is not found
         if (next_cluster >= fat_fs->LAST_CLUSTER || next_cluster == 0)
             return NP;
-        //throw runtime_error("Directory not found");
         // Else, we set the current cluster to the next cluster, and repeat
         else { 
             return push(directory_name, next_cluster);
@@ -210,7 +208,6 @@ drit_status FAT_dir_iterator::push(const char* directory_name, size_t current_cl
                     // Check if it is a directory
                     if (!(DirEntry.DIR_Attr & ATTR_DIRECTORY))
                         return FILE_ENTRY;
-                        //throw runtime_error("Found a file with matching name, but it is not a directory");
 
                     // Found the directory
                     this->first_cluster_of_current_directory = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
@@ -346,7 +343,7 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
                     // Found the file
                     size_t file_size = DirEntry.DIR_FileSize;
                     size_t first_cluster = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    return new file(mode, fat_fs/*->fh*/, file_size, first_cluster, fat_fs->fh->seek(-32, CUR));
+                    return new file(mode, fat_fs, file_size, first_cluster, fat_fs->fh->seek(-32, CUR));
                 }
             }
         }
@@ -440,7 +437,7 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
                     // Found the file
                     size_t file_size = DirEntry.DIR_FileSize;
                     size_t first_cluster = DirEntry.DIR_FstClusLO + (DirEntry.DIR_FstClusHI << 16);
-                    return new file(mode, fat_fs/*->fh*/, file_size, first_cluster, fat_fs->fh->seek(-32, CUR));
+                    return new file(mode, fat_fs, file_size, first_cluster, fat_fs->fh->seek(-32, CUR));
                 }
             }
         }
@@ -451,10 +448,6 @@ smallptr<file> FAT_dir_iterator::open_file(const char* file_name, int mode, size
 
 dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* filename_list_head, dirlist_token* filename_list_tail)
 {
-
-    /*if(filename_list_head == nullptr) filename_list_head = new dirlist_token();
-    if(filename_list_tail == nullptr) filename_list_tail = new dirlist_token();*/
-
     // Traverse through directory to find the file
     FAT_dir_entry DirEntry;
     FAT_Long_File_Name_entry LFNEntry;
@@ -573,6 +566,8 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
         // If there is none, we throw error that file is not found
         if (next_cluster >= fat_fs->LAST_CLUSTER || next_cluster == 0)
         {
+		if(filename_list_head == nullptr) // Empty directory case
+			throw empty_directory();
             dirlist_token head = {filename_list_head->name, filename_list_head->is_directory, filename_list_head->next.ptr};
             filename_list_head->next.ptr = nullptr;
             delete filename_list_head;
@@ -675,6 +670,10 @@ dirlist_token FAT_dir_iterator::list(size_t current_cluster, dirlist_token* file
                 }
             }
         }
+
+	if(filename_list_head == nullptr) // Empty directory case
+		throw empty_directory();
+
         dirlist_token head = {filename_list_head->name, filename_list_head->is_directory, filename_list_head->next.ptr};
         filename_list_head->next.ptr = nullptr;
         delete filename_list_head;

@@ -96,15 +96,9 @@ long syscall_main(int callnum, void* ptr, long arg1, long arg2, long arg3) {
 		case 6: {
 			auto* d = (dir_iterator*)(ptr);
 			if(!d) {return -1;}
+			try {
 			dirlist_token dirtok = d->list();
 			dirlist_token* index = &dirtok;
-
-
-			dirlist_token* current_tok = &dirtok;
-			do {
-				puts(current_tok->name.c_str());
-				current_tok = current_tok->next.ptr;
-			} while (current_tok != nullptr);
 
 			size_t remaining = (long)arg2;
 			if(!remaining) {return -1;}
@@ -122,7 +116,9 @@ long syscall_main(int callnum, void* ptr, long arg1, long arg2, long arg3) {
 				}
 				index = index->next.ptr;
 			}
-			return (long)arg2 - remaining;
+			return (long)arg2 - remaining;} catch(empty_directory&) {
+				return 0;
+			}
 		}
 
 		default: break;

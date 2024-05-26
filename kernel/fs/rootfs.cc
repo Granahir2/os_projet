@@ -113,7 +113,6 @@ smallptr<filehandler> rootfs_dit::open_file(const char* str, int mode) {
 dirlist_token rootfs_dit::list() {
 
 	if(stk_top == -1) {
-
 		dirlist_token* head = new dirlist_token {".", true, nullptr};
 		head = new dirlist_token{"..", true, head, 0};
 		for(int i = 0; i < 256; ++i) {
@@ -121,7 +120,7 @@ dirlist_token rootfs_dit::list() {
 			if(strchr(parent->mnts[i].mountpath.c_str()+1, '/') != nullptr) {
 				continue;
 			}
-			head = new dirlist_token {parent->mnts[i].mountpath, true, head, 0};
+			head = new dirlist_token {parent->mnts[i].mountpath.c_str()+1, true, head, 0};
 		}
 
 		dirlist_token retval = {head->name, head->is_directory, std::move(head->next)};

@@ -100,8 +100,10 @@ public:
 	T raw_it;
 private:
 	dirlist_token do_list() requires requires { {raw_it.list()} -> std::same_as<dirlist_token>; } {
-		auto x = raw_it.list();
-		dirlist_token* raw_list = new dirlist_token{x.name, x.is_directory, std::move(x.next)};
+		
+		dirlist_token* raw_list = nullptr;
+		try {auto x = raw_it.list();
+		raw_list = new dirlist_token{x.name, x.is_directory, std::move(x.next)};} catch(empty_directory&) {}
 		dirlist_token* dot = new dirlist_token{".", true, raw_list};
 		dirlist_token retval = {"..", true, dot};
 		return retval;

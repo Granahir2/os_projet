@@ -38,6 +38,8 @@ drivers/drivers.o: FORCE
 	cd drivers && $(MAKE)
 kstdlib/stdlib.o: FORCE
 	cd kstdlib && $(MAKE)
+userspace/test.elf: FORCE
+	cd userspace && $(MAKE)
 
 FORCE:
 
@@ -59,8 +61,10 @@ clean:
 	cd boot && $(MAKE) clean
 	cd kstdlib && $(MAKE) clean
 	cd drivers && $(MAKE) clean
+	cd userspace && $(MAKE) clean
 
-makefat:
+makefat: userspace/test.elf
+	cp userspace/test.elf fatimage
 	- mkfs.fat -F 16 -C fattest.raw 32768
 	- mkdir -p fatbuild
 	sudo mount -o loop fattest.raw fatbuild
